@@ -1,0 +1,87 @@
+/* Sparkdraw brand tokens — Modern fintech + fire-orange accent
+   Clean canvas, soft cards, warm orange spark identity. */
+
+html[data-theme-preset="sparkdraw"] {
+  --primary: #ea580c;
+  --primary-foreground: #ffffff;
+
+  --background: #f8f9fa;
+  --foreground: #111827;
+  --card: #ffffff;
+  --card-solid: #ffffff;
+  --card-foreground: #111827;
+  --popover: #ffffff;
+  --popover-foreground: #111827;
+  --muted: #f3f4f6;
+  --muted-foreground: #6b7280;
+  --accent: #fff7ed;
+  --accent-foreground: #ea580c;
+  --destructive: #dc2626;
+  --border: #e5e7eb;
+  --input: #f3f4f6;
+  --ring: #ea580c;
+  --radius: 0.875rem;
+
+  --chart-1: #f97316;
+  --chart-2: #fb923c;
+  --chart-3: #fdba74;
+  --chart-4: #ea580c;
+  --chart-5: #c2410c;
+
+  --sd-grad-from: #f97316;
+  --sd-grad-mid: #fb923c;
+  --sd-grad-to: #fdba74;
+  --sd-grad: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+  --sd-grad-soft: rgba(249, 115, 22, 0.08);
+
+  --sidebar: #ffffff;
+  --sidebar-foreground: #6b7280;
+  --sidebar-primary: #ea580c;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #fff7ed;
+  --sidebar-accent-foreground: #ea580c;
+  --sidebar-border: #e5e7eb;
+  --sidebar-ring: #ea580c;
+
+  --text-family: "Plus Jakarta Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+html.dark[data-theme-preset="sparkdraw"] {
+  --background: #0f0f12;
+  --foreground: #f3f4f6;
+  --card: #1a1a1f;
+  --card-solid: #1a1a1f;
+  --card-foreground: #f3f4f6;
+  --popover: #1a1a1f;
+  --popover-foreground: #f3f4f6;
+  --muted: #27272a;
+  --muted-foreground: #a1a1aa;
+  --accent: #2a1a0f;
+  --accent-foreground: #fdba74;
+  --border: rgba(255, 255, 255, 0.08);
+  --input: #27272a;
+  --ring: #f97316;
+  --primary: #f97316;
+  --primary-foreground: #ffffff;
+
+  --chart-1: #f97316;
+  --chart-2: #fb923c;
+  --chart-3: #fdba74;
+  --chart-4: #ea580c;
+  --chart-5: #ffedd5;
+
+  --sd-grad-from: #f97316;
+  --sd-grad-mid: #fb923c;
+  --sd-grad-to: #fdba74;
+  --sd-grad: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+  --sd-grad-soft: rgba(249, 115, 22, 0.14);
+
+  --sidebar: #141418;
+  --sidebar-foreground: #a1a1aa;
+  --sidebar-primary: #f97316;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: rgba(249, 115, 22, 0.12);
+  --sidebar-accent-foreground: #fdba74;
+  --sidebar-border: rgba(255, 255, 255, 0.07);
+  --sidebar-ring: #f97316;
+}

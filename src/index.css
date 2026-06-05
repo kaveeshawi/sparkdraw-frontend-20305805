@@ -1,0 +1,70 @@
+/* Legacy shim — maps every old-design variable to the new token system.
+   Modal internals + any unmigrated inline styles reference these.
+   DO NOT add global resets here. All new UI uses globals.css + design-system.css */
+
+:root {
+  --primary: var(--sd-grad-from, #ea580c);
+  --primary-hover: #c2410c;
+  --primary-light: #fff7ed;
+  --primary-mid: #fb923c;
+  --primary-soft: #ffedd5;
+  --page-bg: #f8f9fa;
+  --card-bg: #ffffff;
+  --card-bg-soft: #fafafa;
+  --border: #e5e7eb;
+  --border-inner: #f3f4f6;
+  --text-primary: #111827;
+  --text-secondary: #374151;
+  --text-muted: #6b7280;
+  --text-hint: #9ca3af;
+  --success-text: #059669;
+  --success-fill: #d1fae5;
+  --warning-text: #d97706;
+  --warning-fill: #fef3c7;
+  --danger-text: #dc2626;
+  --danger-fill: #fee2e2;
+  --info-text: #1e40af;
+  --info-fill: #dbeafe;
+  --field-bg: #fafafa;
+  --field-border: #e5e7eb;
+  --field-border-focus: #ea580c;
+  --field-shadow-focus: 0 0 0 3px rgba(234, 88, 12, 0.12);
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-2xl: 16px;
+  --radius-full: 9999px;
+  --shadow-card: 0 1px 2px rgb(17 24 39 / 0.04), 0 8px 24px rgb(249 115 22 / 0.06);
+  --shadow-dropdown: 0 4px 6px rgb(17 24 39 / 0.04), 0 16px 40px rgb(17 24 39 / 0.08);
+  --shadow-modal: 0 4px 6px rgb(17 24 39 / 0.04), 0 24px 64px rgb(17 24 39 / 0.12);
+  --shadow-focus: 0 0 0 3px rgba(234, 88, 12, 0.12);
+  --font-sans: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+
+  /* Client detail / ProjectsTab semantic aliases */
+  --color-surface-1: #f3f4f6;
+  --color-surface-2: #ffffff;
+  --color-border: var(--border);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-text-accent: #ea580c;
+  --color-bg-accent: #fff7ed;
+  --color-text-success: var(--success-text);
+  --color-bg-success: var(--success-fill);
+  --color-text-danger: var(--danger-text);
+  --color-bg-danger: var(--danger-fill);
+  --color-shadow-sm: 0 1px 2px rgb(17 24 39 / 0.06), 0 4px 12px rgb(17 24 39 / 0.06);
+}
+
+@keyframes sk-shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+
+.sk-pulse {
+  background: linear-gradient(90deg, #fff7ed 25%, #ffedd5 50%, #fff7ed 75%);
+  background-size: 400% 100%;
+  animation: sk-shimmer 1.8s ease-in-out infinite;
+  border-radius: 10px;
+}
