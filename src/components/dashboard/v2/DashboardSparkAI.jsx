@@ -1,21 +1,19 @@
 import { Link } from 'react-router-dom'
 import {
   IconAlertTriangle,
-  IconClipboardCheck,
-  IconMoodSad,
   IconRobot,
-  IconSparkles,
 } from '@tabler/icons-react'
-import { SPARK_AI_INSIGHTS } from '../dashboard-demo-data'
 
-const INSIGHT_ICONS = {
-  risk: IconAlertTriangle,
-  upsell: IconSparkles,
-  sentiment: IconMoodSad,
-  approvals: IconClipboardCheck,
-}
+export default function DashboardSparkAI({ health = null }) {
+  const atRisk = health?.at_risk_projects || []
+  const pills = atRisk.slice(0, 3).map((p) => ({
+    id: p.id,
+    tone: p.flag === 'red' ? 'danger' : 'warning',
+    title: `${p.name} is ${p.flag} (score ${p.score})`,
+    action: 'Review health',
+    href: '/health-scores',
+  }))
 
-export default function DashboardSparkAI() {
   return (
     <section className="sd-dash-v2__ai-banner">
       <div className="sd-dash-v2__ai-head">
@@ -29,7 +27,7 @@ export default function DashboardSparkAI() {
               <span className="sd-dash-v2__ai-beta">BETA</span>
             </h2>
             <p className="sd-dash-v2__ai-sub">
-              Predictive alerts across projects, clients, and revenue
+              Live C3 risk signals for this agency — no demo filler
             </p>
           </div>
         </div>
@@ -39,24 +37,27 @@ export default function DashboardSparkAI() {
       </div>
 
       <div className="sd-dash-v2__ai-pills">
-        {SPARK_AI_INSIGHTS.map((item) => {
-          const Icon = INSIGHT_ICONS[item.id]
-          return (
+        {pills.length === 0 ? (
+          <p className="text-sm text-muted-foreground px-1 py-2">
+            Insufficient events for predictive chips — Health will populate these when scores exist.
+          </p>
+        ) : (
+          pills.map((item) => (
             <Link
               key={item.id}
               to={item.href}
               className={`sd-dash-v2__ai-pill sd-dash-v2__ai-pill--${item.tone}`}
             >
               <span className="sd-dash-v2__ai-pill-icon" aria-hidden>
-                <Icon size={16} stroke={1.75} />
+                <IconAlertTriangle size={16} stroke={1.75} />
               </span>
               <div className="sd-dash-v2__ai-pill-body">
                 <p className="sd-dash-v2__ai-pill-title">{item.title}</p>
                 <span className="sd-dash-v2__ai-pill-action">{item.action} →</span>
               </div>
             </Link>
-          )
-        })}
+          ))
+        )}
       </div>
     </section>
   )

@@ -13,6 +13,7 @@ import {
   DashboardMilestonesWidget,
   DashboardRiskAlerts,
 } from '../components/dashboard/v2/DashboardBottomWidgets'
+import useDashboardData from '../hooks/useDashboardData'
 
 function DashboardWelcome() {
   const { user } = useAuthStore()
@@ -32,6 +33,7 @@ function DashboardWelcome() {
 
 export default function DashboardPage() {
   const [showNewProject, setShowNewProject] = useState(false)
+  const dash = useDashboardData()
 
   return (
     <PageWrapper onNewProject={() => setShowNewProject(true)}>
@@ -39,29 +41,38 @@ export default function DashboardPage() {
         <DashboardWelcome />
 
         <div className="sd-dash-v2__top">
-          <DashboardKpiStrip />
+          <DashboardKpiStrip
+            loading={dash.loading}
+            summary={dash.summary}
+            health={dash.health}
+            revenue={dash.revenue}
+            tasksInProgress={dash.tasksInProgress}
+          />
           <DashboardFocusToday />
         </div>
 
-        <DashboardSparkAI />
+        <DashboardSparkAI health={dash.health} />
 
         <div className="sd-dash-v2__main">
-          <DashboardProjectsOverview />
+          <DashboardProjectsOverview projects={dash.projects} loading={dash.loading} />
           <DashboardActivityFeed />
         </div>
 
         <div className="sd-dash-v2__bottom">
-          <DashboardHealthWidget />
+          <DashboardHealthWidget health={dash.health} loading={dash.loading} />
           <DashboardTeamWorkload />
-          <DashboardMilestonesWidget />
-          <DashboardRiskAlerts />
+          <DashboardMilestonesWidget projects={dash.projects} />
+          <DashboardRiskAlerts health={dash.health} />
         </div>
       </div>
 
       <NewProjectModal
         open={showNewProject}
         onClose={() => setShowNewProject(false)}
-        onCreated={() => setShowNewProject(false)}
+        onCreated={() => {
+          setShowNewProject(false)
+          dash.refresh()
+        }}
       />
     </PageWrapper>
   )

@@ -141,6 +141,8 @@ function resolveStatusDisplay(project) {
 
 export default function ProjectCard({ project, onOpen }) {
   const progress = getProgressPct(project)
+  const taskTotal = Number(project?.task_counts?.total ?? project?.tasks_count ?? 0)
+  const hasTasks = taskTotal > 0
   const health = getProjectHealth(project)
   const flag = health?.flag
   const typeLabel = useServiceLabel(project.type)
@@ -191,7 +193,7 @@ export default function ProjectCard({ project, onOpen }) {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <p className="shrink-0 text-[22px] font-semibold leading-none tabular-nums text-[var(--color-text-primary)]">
-              {progress}%
+              {hasTasks ? `${progress}%` : '—'}
             </p>
             <span
               className="inline-flex size-5 shrink-0 items-center justify-center rounded-full"
@@ -208,15 +210,19 @@ export default function ProjectCard({ project, onOpen }) {
             </p>
           </div>
 
-          <div className="mt-2.5 h-2 overflow-hidden rounded-full bg-orange-50">
-            <div
-              className="h-full rounded-full transition-[width] duration-300"
-              style={{
-                width: `${progress}%`,
-                background: accent,
-              }}
-            />
-          </div>
+          {hasTasks ? (
+            <div className="mt-2.5 h-2 overflow-hidden rounded-full bg-orange-50">
+              <div
+                className="h-full rounded-full transition-[width] duration-300"
+                style={{
+                  width: `${progress}%`,
+                  background: accent,
+                }}
+              />
+            </div>
+          ) : (
+            <p className="mt-2.5 text-[12px] text-muted-foreground">No tasks yet</p>
+          )}
 
           {milestoneDue ? (
             <p className="mt-3 text-[13px] text-muted-foreground">

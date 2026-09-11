@@ -1,3 +1,4 @@
+/** P0: Dashboard prod path no longer imports this file. Kept for design/Storybook refs only — do not rewire Overview to these fixtures. */
 /** Demo data for dashboard v2 â€” replace with API wiring later. */
 
 export const DASHBOARD_KPIS = [

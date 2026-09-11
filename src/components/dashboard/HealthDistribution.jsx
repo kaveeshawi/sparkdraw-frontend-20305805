@@ -2,13 +2,33 @@ export default function HealthDistribution({ scores = [] }) {
   const green = scores.filter((s) => s.flag === 'green').length
   const amber = scores.filter((s) => s.flag === 'amber').length
   const red = scores.filter((s) => s.flag === 'red').length
-  const total = green + amber + red || 1
+  const total = green + amber + red
+
+  if (total === 0) {
+    return (
+      <div className="ref-health-donut">
+        <div className="ref-health-donut__wrap">
+          <div className="ref-health-donut__chart" style={{ background: 'var(--border)' }}>
+            <div className="ref-health-donut__hole">
+              <span className="text-2xl font-semibold">0</span>
+              <span className="text-xs text-muted-foreground">Projects</span>
+            </div>
+          </div>
+        </div>
+        <div className="ref-health-donut__legend">
+          <p className="text-sm text-muted-foreground">
+            Insufficient events — no scored projects for this agency yet.
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   const segments = [
-    { label: 'On Track', count: green || 8, color: '#10b981', pct: ((green || 8) / (total || 16)) * 100 },
-    { label: 'At Risk', count: amber || 5, color: '#f59e0b', pct: ((amber || 5) / (total || 16)) * 100 },
-    { label: 'Critical', count: red || 3, color: '#ef4444', pct: ((red || 3) / (total || 16)) * 100 },
-  ]
+    { label: 'On Track', count: green, color: '#10b981', pct: (green / total) * 100 },
+    { label: 'At Risk', count: amber, color: '#f59e0b', pct: (amber / total) * 100 },
+    { label: 'Critical', count: red, color: '#ef4444', pct: (red / total) * 100 },
+  ].filter((s) => s.count > 0)
 
   let offset = 0
   const gradient = segments
@@ -27,7 +47,7 @@ export default function HealthDistribution({ scores = [] }) {
           style={{ background: `conic-gradient(${gradient})` }}
         >
           <div className="ref-health-donut__hole">
-            <span className="text-2xl font-semibold">{green + amber + red || 16}</span>
+            <span className="text-2xl font-semibold">{total}</span>
             <span className="text-xs text-muted-foreground">Projects</span>
           </div>
         </div>

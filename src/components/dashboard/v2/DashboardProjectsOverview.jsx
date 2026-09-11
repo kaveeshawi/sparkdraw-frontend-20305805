@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { IconDotsVertical } from '@tabler/icons-react'
 import { cn } from '@/lib/utils'
-import { DEMO_PROJECTS, PROJECT_FILTERS } from '../dashboard-demo-data'
 
 const STATUS = {
   on_track: { label: 'On Track', className: 'is-track' },
@@ -11,7 +10,18 @@ const STATUS = {
   completed: { label: 'Completed', className: 'is-done' },
 }
 
+const FILTERS = [
+  { id: 'all', label: 'All' },
+  { id: 'on_track', label: 'On Track' },
+  { id: 'at_risk', label: 'At Risk' },
+  { id: 'on_hold', label: 'On Hold' },
+  { id: 'completed', label: 'Completed' },
+]
+
 function HealthRing({ score }) {
+  if (score == null) {
+    return <span className="text-xs text-muted-foreground">Not scored</span>
+  }
   const pct = Math.min(100, Math.max(0, score)) / 100
   const color = score >= 70 ? '#10b981' : score >= 40 ? '#f59e0b' : '#ef4444'
   return (
@@ -27,6 +37,7 @@ function HealthRing({ score }) {
 }
 
 function TeamAvatars({ team, extra = 0 }) {
+  if (!team?.length) return <span className="text-xs text-muted-foreground">—</span>
   return (
     <div className="sd-dash-v2__team">
       {team.slice(0, 3).map((initials, i) => (
@@ -39,15 +50,13 @@ function TeamAvatars({ team, extra = 0 }) {
   )
 }
 
-export default function DashboardProjectsOverview() {
+export default function DashboardProjectsOverview({ projects = [], loading = false }) {
   const [filter, setFilter] = useState('all')
 
   const rows = useMemo(() => {
-    if (filter === 'all') return DEMO_PROJECTS
-    if (filter === 'on_hold') return DEMO_PROJECTS.filter((p) => p.status === 'on_hold')
-    if (filter === 'completed') return DEMO_PROJECTS.filter((p) => p.status === 'completed')
-    return DEMO_PROJECTS.filter((p) => p.status === filter)
-  }, [filter])
+    if (filter === 'all') return projects
+    return projects.filter((p) => p.status === filter)
+  }, [filter, projects])
 
   return (
     <section className="sd-dash-v2__panel sd-dash-v2__panel--projects">
@@ -62,7 +71,7 @@ export default function DashboardProjectsOverview() {
       </header>
 
       <div className="sd-dash-v2__filters">
-        {PROJECT_FILTERS.map((f) => (
+        {FILTERS.map((f) => (
           <button
             key={f.id}
             type="button"
@@ -75,88 +84,110 @@ export default function DashboardProjectsOverview() {
       </div>
 
       <div className="sd-dash-v2__table-wrap">
-        <table className="sd-dash-v2__table">
-          <thead>
-            <tr>
-              <th>Project</th>
-              <th>Client</th>
-              <th>Health</th>
-              <th>Progress</th>
-              <th>Next Milestone</th>
-              <th>Due Date</th>
-              <th>Status</th>
-              <th>Team</th>
-              <th aria-label="Actions" />
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((project) => {
-              const status = STATUS[project.status] || STATUS.on_track
-              return (
-                <tr key={project.id}>
-                  <td>
-                    <Link to={`/projects/${project.id}/`} className="sd-dash-v2__project-link">
-                      <span
-                        className="sd-dash-v2__project-dot"
-                        style={{ background: project.color }}
-                      />
-                      <span>
-                        <strong>{project.name}</strong>
-                        <em>{project.category}</em>
-                      </span>
-                    </Link>
-                  </td>
-                  <td>{project.client}</td>
-                  <td>
-                    <HealthRing score={project.health} />
-                  </td>
-                  <td>
-                    <div className="sd-dash-v2__progress">
-                      <div className="sd-dash-v2__progress-track">
-                        <div
-                          className="sd-dash-v2__progress-fill"
-                          style={{ width: `${project.progress}%` }}
+        {loading ? (
+          <p className="py-12 text-center text-sm text-muted-foreground">Loading projects…</p>
+        ) : rows.length === 0 ? (
+          <p className="py-12 text-center text-sm text-muted-foreground">
+            No projects yet — connect activity or create a project. Never a fake sample table.
+          </p>
+        ) : (
+          <table className="sd-dash-v2__table">
+            <thead>
+              <tr>
+                <th>Project</th>
+                <th>Client</th>
+                <th>Health</th>
+                <th>Progress</th>
+                <th>Next Milestone</th>
+                <th>Due Date</th>
+                <th>Status</th>
+                <th>Team</th>
+                <th aria-label="Actions" />
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((project) => {
+                const status = STATUS[project.status] || STATUS.on_track
+                return (
+                  <tr key={project.id}>
+                    <td>
+                      <Link to={`/projects/${project.id}/`} className="sd-dash-v2__project-link">
+                        <span
+                          className="sd-dash-v2__project-dot"
+                          style={{ background: project.color }}
                         />
-                      </div>
-                      <span>{project.progress}%</span>
-                    </div>
-                  </td>
-                  <td>
-                    <span className="sd-dash-v2__milestone-name">{project.milestone}</span>
-                    <span className="sd-dash-v2__milestone-meta">
-                      {project.tasksLeft} task{project.tasksLeft !== 1 ? 's' : ''} left
-                    </span>
-                  </td>
-                  <td>
-                    <span className="sd-dash-v2__due">{project.dueDate}</span>
-                    <span
-                      className={cn(
-                        'sd-dash-v2__due-meta',
-                        project.daysTone === 'danger' && 'is-danger',
-                        project.daysTone === 'warn' && 'is-warn',
+                        <span>
+                          <strong>{project.name}</strong>
+                          <em>{project.category}</em>
+                        </span>
+                      </Link>
+                    </td>
+                    <td>{project.client}</td>
+                    <td>
+                      <HealthRing score={project.health} />
+                    </td>
+                    <td>
+                      {project.hasTasks ? (
+                        <div className="sd-dash-v2__progress">
+                          <div className="sd-dash-v2__progress-track">
+                            <div
+                              className="sd-dash-v2__progress-fill"
+                              style={{ width: `${project.progress}%` }}
+                            />
+                          </div>
+                          <span>{project.progress}%</span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">No tasks yet</span>
                       )}
-                    >
-                      {project.daysLabel}
-                    </span>
-                  </td>
-                  <td>
-                    <span className={cn('sd-dash-v2__status', status.className)}>
-                      {status.label}
-                    </span>
-                  </td>
-                  <td>
-                    <TeamAvatars team={project.team} extra={project.extraTeam} />
-                  </td>
-                  <td>
-                    <button type="button" className="sd-dash-v2__row-menu" aria-label="Actions">
-                      <IconDotsVertical size={16} stroke={1.75} />
-                    </button>
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+                    </td>
+                    <td>
+                      {project.milestone ? (
+                        <>
+                          <span className="sd-dash-v2__milestone-name">{project.milestone}</span>
+                          <span className="sd-dash-v2__milestone-meta">
+                            {project.tasksLeft} task{project.tasksLeft !== 1 ? 's' : ''} left
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">No active milestone</span>
+                      )}
+                    </td>
+                    <td>
+                      <span className="sd-dash-v2__due">{project.dueDate}</span>
+                      <span
+                        className={cn(
+                          'sd-dash-v2__due-meta',
+                          project.daysTone === 'danger' && 'is-danger',
+                          project.daysTone === 'warn' && 'is-warn',
+                        )}
+                      >
+                        {project.daysLabel}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={cn('sd-dash-v2__status', status.className)}>
+                        {status.label}
+                      </span>
+                    </td>
+                    <td>
+                      <TeamAvatars team={project.team} extra={project.extraTeam} />
+                    </td>
+                    <td>
+                      <Link
+                        to={`/projects/${project.id}/`}
+                        className="sd-dash-v2__row-menu"
+                        aria-label="Open project"
+                      >
+                        <IconDotsVertical size={16} stroke={1.75} />
+                      </Link>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        )}
       </div>
     </section>
   )
