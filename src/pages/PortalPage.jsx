@@ -11,6 +11,7 @@ import PortalChat from '../components/portal/PortalChat'
 import FeedbackHub from '../components/portal/FeedbackHub'
 import ApprovalCard from '../components/portal/ApprovalCard'
 import PortalAssets from '../components/portal/PortalAssets'
+import PortalUpsellOffers from '../components/portal/PortalUpsellOffers'
 import { portalApi } from '../services/api'
 import { useFormatMoney } from '@/hooks/useAgencyCurrency'
 
@@ -24,7 +25,7 @@ const STATUS_VARIANT = {
 const TAB_META = {
   overview: {
     title: 'Overview',
-    subtitle: 'Track milestone progress on your active project.',
+    subtitle: 'Track progress and review offers your agency sends you.',
   },
   chat: {
     title: 'Chat',
@@ -180,7 +181,10 @@ export default function PortalPage() {
       pageSubtitle={meta.subtitle}
     >
       {activeTab === 'overview' ? (
-        <ProgressView slug={slug} projectId={projectId} />
+        <div className="sd-page sd-page--team">
+          <PortalUpsellOffers slug={slug} projectId={projectId} />
+          <ProgressView slug={slug} projectId={projectId} embedded />
+        </div>
       ) : null}
 
       {activeTab === 'chat' ? (

@@ -154,10 +154,12 @@ function MilestoneRow({ milestone }) {
   )
 }
 
-export default function ProgressView({ slug, projectId }) {
+export default function ProgressView({ slug, projectId, embedded = false }) {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
+  const wrap = (node) =>
+    embedded ? node : <div className="sd-page sd-page--team">{node}</div>
 
   const fetchProgress = () => {
     if (!slug || !projectId) {
@@ -218,22 +220,20 @@ export default function ProgressView({ slug, projectId }) {
   }, [milestones])
 
   if (!projectId) {
-    return (
-      <div className="sd-page sd-page--team">
-        <div className="sd-card p-8 text-center">
-          <IconFlag size={22} stroke={1.5} className="mx-auto text-muted-foreground" />
-          <p className="mt-2 text-sm font-medium">No project linked yet</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            When your agency assigns a project to your account, progress will show here.
-          </p>
-        </div>
+    return wrap(
+      <div className="sd-card p-8 text-center">
+        <IconFlag size={22} stroke={1.5} className="mx-auto text-muted-foreground" />
+        <p className="mt-2 text-sm font-medium">No project linked yet</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          When your agency assigns a project to your account, progress will show here.
+        </p>
       </div>
     )
   }
 
   if (loading) {
-    return (
-      <div className="sd-page sd-page--team space-y-3">
+    return wrap(
+      <div className="space-y-3">
         <Skeleton className="h-8 w-64" />
         <div className="grid gap-3 md:grid-cols-2">
           <Skeleton className="h-48 w-full rounded-2xl" />
@@ -245,15 +245,13 @@ export default function ProgressView({ slug, projectId }) {
   }
 
   if (error) {
-    return (
-      <div className="sd-page sd-page--team">
-        <div className="sd-card flex flex-col items-center gap-3 p-8 text-center">
-          <p className="text-sm font-medium">Couldn’t load progress</p>
-          <Button type="button" variant="secondary" onClick={fetchProgress}>
-            <IconRefresh size={14} />
-            Retry
-          </Button>
-        </div>
+    return wrap(
+      <div className="sd-card flex flex-col items-center gap-3 p-8 text-center">
+        <p className="text-sm font-medium">Couldn’t load progress</p>
+        <Button type="button" variant="secondary" onClick={fetchProgress}>
+          <IconRefresh size={14} />
+          Retry
+        </Button>
       </div>
     )
   }
@@ -261,8 +259,8 @@ export default function ProgressView({ slug, projectId }) {
   const taskTotal = stats.tasks?.total || 0
   const doneCount = stats.milestones?.completed || milestones.filter((m) => m.status === 'completed').length
 
-  return (
-    <div className="sd-page sd-page--team space-y-4">
+  return wrap(
+    <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         <h2 className="text-base font-semibold tracking-tight">
           {project.name || 'Project overview'}

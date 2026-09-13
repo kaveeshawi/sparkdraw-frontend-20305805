@@ -32,11 +32,15 @@ const FILTERS = [
 ]
 
 function statusLabel(s) {
+  if (s.client_status === 'accepted') return 'accepted'
+  if (s.client_status === 'declined') return 'declined'
   if (s.client_status === 'shown') return 'sent'
   return s.admin_status || 'pending'
 }
 
 function statusClass(s) {
+  if (s.client_status === 'accepted') return 'is-approved'
+  if (s.client_status === 'declined') return 'is-rejected'
   if (s.client_status === 'shown') return 'is-sent'
   return `is-${s.admin_status || 'pending'}`
 }

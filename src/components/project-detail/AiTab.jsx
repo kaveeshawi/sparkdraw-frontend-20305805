@@ -186,11 +186,13 @@ export default function AiTab({ project, projectId, onProjectRefresh }) {
   // Active batch: pending options + anything already sent (for undo)
   const optionUpsells = useMemo(() => {
     const pending = upsells.filter(
-      (u) => u.admin_status === 'pending' && u.client_status !== 'shown',
+      (u) => u.admin_status === 'pending' && u.client_status === 'hidden',
     )
-    const sent = upsells.filter((u) => u.client_status === 'shown')
+    const sent = upsells.filter((u) =>
+      ['shown', 'accepted', 'declined'].includes(u.client_status),
+    )
     const approved = upsells.filter(
-      (u) => u.admin_status === 'approved' && u.client_status !== 'shown',
+      (u) => u.admin_status === 'approved' && u.client_status === 'hidden',
     )
     const batch = [...pending, ...sent, ...approved]
     if (batch.length) return batch
@@ -205,14 +207,14 @@ export default function AiTab({ project, projectId, onProjectRefresh }) {
 
   const canUndo = Boolean(
     selectedUpsell &&
-      (selectedUpsell.client_status === 'shown' ||
+      (['shown', 'accepted', 'declined'].includes(selectedUpsell.client_status) ||
         selectedUpsell.admin_status === 'approved' ||
         selectedUpsell.admin_status === 'rejected'),
   )
 
   const canSend = Boolean(
     selectedUpsell &&
-      selectedUpsell.client_status !== 'shown' &&
+      selectedUpsell.client_status === 'hidden' &&
       selectedUpsell.admin_status !== 'rejected',
   )
 
@@ -410,14 +412,20 @@ export default function AiTab({ project, projectId, onProjectRefresh }) {
                     <span
                       className={cn(
                         'sd-upsell-engine__status',
-                        selectedUpsell.client_status === 'shown'
+                        selectedUpsell.client_status === 'shown' ||
+                        selectedUpsell.client_status === 'accepted' ||
+                        selectedUpsell.client_status === 'declined'
                           ? 'is-sent'
                           : `is-${selectedUpsell.admin_status || 'pending'}`,
                       )}
                     >
-                      {selectedUpsell.client_status === 'shown'
-                        ? 'sent'
-                        : selectedUpsell.admin_status || 'pending'}
+                      {selectedUpsell.client_status === 'accepted'
+                        ? 'accepted'
+                        : selectedUpsell.client_status === 'declined'
+                          ? 'declined'
+                          : selectedUpsell.client_status === 'shown'
+                            ? 'sent'
+                            : selectedUpsell.admin_status || 'pending'}
                     </span>
                   ) : null}
                 </div>
@@ -439,7 +447,9 @@ export default function AiTab({ project, projectId, onProjectRefresh }) {
                           <strong>{formatServiceType(u.service_type)}</strong>
                           <em>
                             {Math.round(Number(u.confidence || 0) * 100)}% confidence
-                            {u.client_status === 'shown' ? ' · sent' : ''}
+                            {['shown', 'accepted', 'declined'].includes(u.client_status)
+                              ? ` · ${u.client_status === 'shown' ? 'sent' : u.client_status}`
+                              : ''}
                           </em>
                         </span>
                       </button>
