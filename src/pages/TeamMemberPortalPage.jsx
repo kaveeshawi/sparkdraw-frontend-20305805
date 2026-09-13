@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
+  IconLayoutDashboard, IconCalendarStats, IconUmbrella, IconCreditCard,
+  IconGauge, IconFileText, IconReceipt, IconChecklist,
   IconMail, IconBriefcase, IconBuilding, IconCalendar, IconId,
   IconPencil, IconDotsVertical, IconCopy, IconArrowLeft, IconUserOff, IconUserCheck, IconTrash,
 } from '@tabler/icons-react'
@@ -24,8 +26,27 @@ import { ROLE_LABELS, displayDepartment, displayMemberName } from '../components
 import TeamAvatar from '../components/team/TeamAvatar'
 import TeamProfileModal from '../components/team/TeamProfileModal'
 import PortalContactActions from '../components/team/PortalContactActions'
+import { getPortalData } from '../components/team-portal/portalMockData'
+import OverviewTab from '../components/team-portal/OverviewTab'
+import AttendanceTab from '../components/team-portal/AttendanceTab'
+import LeaveTab from '../components/team-portal/LeaveTab'
+import PayrollTab from '../components/team-portal/PayrollTab'
+import PerformanceTab from '../components/team-portal/PerformanceTab'
+import DocumentsTab from '../components/team-portal/DocumentsTab'
+import ExpensesTab from '../components/team-portal/ExpensesTab'
 import MemberWorkPanel from '../components/team-portal/MemberWorkPanel'
 import { cn } from '@/lib/utils'
+
+const TABS = [
+  { id: 'overview', label: 'Overview', icon: IconLayoutDashboard },
+  { id: 'attendance', label: 'Attendance', icon: IconCalendarStats },
+  { id: 'leave', label: 'Leave', icon: IconUmbrella },
+  { id: 'payroll', label: 'Payroll', icon: IconCreditCard },
+  { id: 'work', label: 'Work', icon: IconChecklist },
+  { id: 'performance', label: 'Performance', icon: IconGauge },
+  { id: 'documents', label: 'Documents', icon: IconFileText },
+  { id: 'expenses', label: 'Expenses', icon: IconReceipt },
+]
 
 const STATUS_TONE = {
   active: { bg: '#ecfdf5', color: '#059669', dot: '#10b981' },
@@ -43,6 +64,12 @@ const STATUS_LABEL = {
   access_revoked: 'Access revoked',
 }
 
+const LIVE_STATUS_TONE = {
+  clocked_in: { color: '#059669', bg: '#ecfdf5', border: '#a7f3d0', dot: '#10b981' },
+  clocked_out: { color: '#6b7280', bg: 'color-mix(in srgb, var(--muted) 55%, transparent)', border: 'var(--border)', dot: '#9ca3af' },
+  absent: { color: '#dc2626', bg: '#fef2f2', border: '#fecaca', dot: '#ef4444' },
+}
+
 export default function TeamMemberPortalPage() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -55,6 +82,7 @@ export default function TeamMemberPortalPage() {
   const [member, setMember] = useState(null)
   const [loading, setLoading] = useState(true)
   const [departments, setDepartments] = useState([])
+  const [activeTab, setActiveTab] = useState('overview')
   const [editOpen, setEditOpen] = useState(false)
   const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false)
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
@@ -86,10 +114,23 @@ export default function TeamMemberPortalPage() {
     fetchDepartments(agencyId).then(setDepartments)
   }, [agencyId])
 
+  useEffect(() => {
+    if (!user || loading) return
+    if (!isAdmin && user.role === 'member' && !isSelf) {
+      navigate(`/team/${user.id}/portal`, { replace: true })
+    }
+  }, [user, loading, isAdmin, isSelf, navigate])
+
+  const data = useMemo(
+    () => (member ? getPortalData(member) : null),
+    [member],
+  )
+
   const displayName = member ? displayMemberName(member) : '…'
   const position = member?.job_title?.trim() || ROLE_LABELS[member?.role] || member?.role || 'Team Member'
   const department = member ? displayDepartment(member) : ''
   const inviteTone = STATUS_TONE[member?.invite_status] || STATUS_TONE.active
+  const liveTone = LIVE_STATUS_TONE[data?.liveStatus?.state] || LIVE_STATUS_TONE.clocked_out
   const joinedLabel = member?.created_at
     ? new Date(member.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
     : '—'
@@ -192,14 +233,6 @@ export default function TeamMemberPortalPage() {
     else navigate('/team')
   }
 
-  // Redirect members away from other people's portals
-  useEffect(() => {
-    if (!user || loading) return
-    if (!isAdmin && user.role === 'member' && !isSelf) {
-      navigate(`/team/${user.id}/portal`, { replace: true })
-    }
-  }, [user, loading, isAdmin, isSelf, navigate])
-
   return (
     <PageWrapper
       breadcrumb={isAdmin ? ['Team', displayName] : [displayName]}
@@ -218,8 +251,8 @@ export default function TeamMemberPortalPage() {
               </button>
             ) : null}
             <PageHeader
-              title={isSelf ? 'My workspace' : 'Member workspace'}
-              subtitle="Assigned tasks, projects, and team chat"
+              title={isSelf ? 'My workspace' : 'Member portal'}
+              subtitle="Overview, attendance, payroll, and work"
             />
           </div>
           {canManage && member ? (
@@ -341,6 +374,23 @@ export default function TeamMemberPortalPage() {
               </div>
 
               <div className="sd-team-portal__profile-side">
+                {data?.liveStatus ? (
+                  <article
+                    className="sd-team-portal__live-status"
+                    style={{ background: liveTone.bg, borderColor: liveTone.border }}
+                  >
+                    <span
+                      className="sd-team-portal__live-status-dot"
+                      style={{ background: liveTone.dot, color: liveTone.dot }}
+                    />
+                    <div>
+                      <p className="sd-team-portal__live-status-label" style={{ color: liveTone.color }}>
+                        {data.liveStatus.label}
+                      </p>
+                      <p className="sd-team-portal__live-status-detail">{data.liveStatus.detail}</p>
+                    </div>
+                  </article>
+                ) : null}
                 <PortalContactActions
                   person={member}
                   aria-label="Contact team member"
@@ -355,12 +405,51 @@ export default function TeamMemberPortalPage() {
               </div>
             </section>
 
+            <div className="sd-team-portal__tabs-wrap" role="tablist" aria-label="Portal sections">
+              <div className="sd-header-tabs sd-team-portal__tabs">
+                {TABS.map((tab) => {
+                  const Icon = tab.icon
+                  const active = activeTab === tab.id
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      role="tab"
+                      aria-selected={active}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={cn('sd-header-tab sd-team-portal__tab', active && 'sd-header-tab--active')}
+                    >
+                      <Icon size={14} stroke={1.75} aria-hidden />
+                      {tab.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
             <div className="sd-team-portal__content">
-              <MemberWorkPanel
-                memberId={member.id}
-                isSelf={isSelf}
-                canManage={canManage}
-              />
+              {activeTab === 'overview' && (
+                <OverviewTab data={data} onNavigateTab={setActiveTab} />
+              )}
+              {activeTab === 'attendance' && (
+                <AttendanceTab member={member} data={data} canManage={canManage} />
+              )}
+              {activeTab === 'leave' && (
+                <LeaveTab data={data} canManage={canManage} />
+              )}
+              {activeTab === 'payroll' && (
+                <PayrollTab data={data} member={member} canManage={canManage} />
+              )}
+              {activeTab === 'work' && (
+                <MemberWorkPanel
+                  memberId={member.id}
+                  isSelf={isSelf}
+                  canManage={canManage}
+                />
+              )}
+              {activeTab === 'performance' && <PerformanceTab data={data} />}
+              {activeTab === 'documents' && <DocumentsTab data={data} />}
+              {activeTab === 'expenses' && <ExpensesTab data={data} />}
             </div>
 
             <TeamProfileModal

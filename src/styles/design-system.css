@@ -11980,7 +11980,24 @@ html.dark[data-theme-preset="sparkdraw"] {
   }
 
   .sd-team-portal__att-kpi {
-    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+    width: 100%;
+    align-self: stretch;
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @media (min-width: 760px) {
+    .sd-team-portal__att-kpi {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  @media (min-width: 1100px) {
+    .sd-team-portal .sd-dash-v2__kpi-grid.sd-team-portal__att-kpi,
+    .sd-team-portal__att-kpi {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
   }
 
   .sd-team-portal__cal-nav {
@@ -13044,11 +13061,25 @@ html.dark[data-theme-preset="sparkdraw"] {
 
   /* Team Member Portal — payroll */
   .sd-team-portal__payroll {
+    display: flex;
+    flex-direction: column;
     gap: 1.25rem;
+    width: 100%;
+    min-width: 0;
   }
 
   .sd-team-portal__pay-kpi {
-    grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr));
+    width: 100%;
+    align-self: stretch;
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @media (min-width: 900px) {
+    .sd-team-portal__pay-kpi {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
   }
 
   .sd-team-portal__pay-top-grid,
@@ -19134,7 +19165,24 @@ html.dark[data-theme-preset="sparkdraw"] {
   }
 
   .sd-team-portal .sd-dash-v2__kpi-grid {
+    width: 100%;
+    align-self: stretch;
     gap: 1rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @media (min-width: 900px) {
+    .sd-team-portal .sd-dash-v2__kpi-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .sd-team-portal .sd-dash-v2__kpi-grid--3 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .sd-team-portal .sd-dash-v2__kpi-grid.sd-team-portal__att-kpi {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
   }
 
   .sd-team-portal__kpi-card {
