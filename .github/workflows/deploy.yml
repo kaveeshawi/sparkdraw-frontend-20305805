@@ -21,6 +21,7 @@ jobs:
           key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
           envs: GH_TOKEN
           script_stop: true
+          command_timeout: 30m
           script: |
             set -e
             APP_DIR=/var/www/sparkdraw-frontend
@@ -38,11 +39,21 @@ jobs:
               sudo git clone "$AUTH_REPO" "$APP_DIR"
             fi
 
-            cd "$APP_DIR"
-            sudo git remote set-url origin "$AUTH_REPO"
-            sudo git fetch origin main
-            sudo git reset --hard origin/main
-            sudo git remote set-url origin "https://github.com/${REPO_SLUG}"
+            # Repo was often cloned as root — fix ownership before npm
+            sudo git config --system --add safe.directory "$APP_DIR" || true
+            git config --global --add safe.directory "$APP_DIR" || true
+            sudo chown -R "$USER:$USER" "$APP_DIR"
 
-            npm install
+            cd "$APP_DIR"
+            git remote set-url origin "$AUTH_REPO"
+            git fetch origin main
+            git reset --hard origin/main
+            git remote set-url origin "https://github.com/${REPO_SLUG}"
+
+            npm ci || npm install
             npm run build
+
+            # Nginx typically serves dist/ as www-data
+            if [ -d dist ]; then
+              sudo chown -R www-data:www-data dist
+            fi
