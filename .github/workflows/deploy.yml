@@ -23,7 +23,7 @@ jobs:
 
       - name: Install & build
         env:
-          VITE_API_URL: http://3.8.141.146/api/v1
+          VITE_API_URL: http://3.10.58.152/api/v1
         run: |
           npm ci
           npm run build
