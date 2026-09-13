@@ -11,7 +11,34 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Deploy to Lightsail
+      # Build on GitHub (Lightsail OOM-kills vite — exit 137)
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install & build
+        env:
+          VITE_API_URL: http://3.8.141.146/api/v1
+        run: |
+          npm ci
+          npm run build
+          tar -czf dist.tar.gz -C dist .
+
+      - name: Upload dist to Lightsail
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.LIGHTSAIL_HOST }}
+          username: ${{ secrets.LIGHTSAIL_USER }}
+          key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
+          source: dist.tar.gz
+          target: /tmp/
+
+      - name: Publish dist on Lightsail
         uses: appleboy/ssh-action@v1.0.3
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -20,8 +47,7 @@ jobs:
           username: ${{ secrets.LIGHTSAIL_USER }}
           key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
           envs: GH_TOKEN
-          # Do NOT use script_stop — it breaks if/else (false tests become exit 1)
-          command_timeout: 30m
+          command_timeout: 15m
           script: |
             set -e
             APP_DIR=/var/www/sparkdraw-frontend
@@ -33,13 +59,17 @@ jobs:
               exit 1
             fi
 
+            if [ ! -f /tmp/dist.tar.gz ]; then
+              echo "dist.tar.gz missing in /tmp"
+              exit 1
+            fi
+
             sudo mkdir -p /var/www
             if [ ! -d "$APP_DIR/.git" ]; then
               sudo rm -rf "$APP_DIR"
               sudo git clone "$AUTH_REPO" "$APP_DIR"
             fi
 
-            # Repo was often cloned as root — fix ownership before npm
             sudo git config --system --add safe.directory "$APP_DIR" || true
             git config --global --add safe.directory "$APP_DIR" || true
             sudo chown -R "$USER:$USER" "$APP_DIR"
@@ -50,10 +80,10 @@ jobs:
             git reset --hard origin/main
             git remote set-url origin "https://github.com/${REPO_SLUG}"
 
-            npm ci || npm install
-            npm run build
-
-            # Nginx typically serves dist/ as www-data
-            if [ -d dist ]; then
-              sudo chown -R www-data:www-data dist
-            fi
+            # Replace dist from CI build (do not npm build on the VPS)
+            rm -rf dist
+            mkdir -p dist
+            tar -xzf /tmp/dist.tar.gz -C dist
+            rm -f /tmp/dist.tar.gz
+            sudo chown -R www-data:www-data dist
+            echo "Published frontend at $(git rev-parse --short HEAD)"
