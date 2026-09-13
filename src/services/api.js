@@ -55,6 +55,7 @@ export const projectsApi = {
   update:      (id, data) => api.put(`/projects/${id}`, data),
   destroy:     (id)       => api.delete(`/projects/${id}`),
   timeSummary: ()         => api.get('/projects/time-summary'),
+  timeSummaryFor: (id)    => api.get(`/projects/${id}/time-summary`),
 }
 
 export const tasksApi = {
@@ -66,10 +67,23 @@ export const tasksApi = {
   timeLogs:     (projectId, taskId)       => api.get(`/projects/${projectId}/tasks/${taskId}/time-logs`),
   logTime:      (projectId, taskId, data) => api.post(`/projects/${projectId}/tasks/${taskId}/time-logs`, data),
   mine:         (params)                  => api.get('/tasks', { params }),
+  productivity: (params)                  => api.get('/tasks/productivity', { params }),
+}
+
+export const calendarApi = {
+  index:   (params) => api.get('/calendar/events', { params }),
+  store:   (data)   => api.post('/calendar/events', data),
+  update:  (id, data) => api.put(`/calendar/events/${id}`, data),
+  destroy: (id)     => api.delete(`/calendar/events/${id}`),
 }
 
 export const milestonesApi = {
-  index: (projectId) => api.get(`/projects/${projectId}/milestones`),
+  index:    (projectId)           => api.get(`/projects/${projectId}/milestones`),
+  complete: (projectId, id)       => api.patch(`/projects/${projectId}/milestones/${id}/complete`),
+}
+
+export const risksApi = {
+  index: (projectId) => api.get(`/projects/${projectId}/risks`),
 }
 
 export const revisionsApi = {
@@ -110,6 +124,7 @@ export const invoicesApi = {
   send:    (id)       => api.patch(`/invoices/${id}/send`),
   pay:     (id)       => api.post(`/invoices/${id}/pay`),
   payCard: (id, data) => api.post(`/invoices/${id}/pay-card`, data),
+  payWise: (id)       => api.post(`/invoices/${id}/pay-wise`),
   revenue: ()         => api.get('/invoices/revenue'),
   paymentSuccess: (id, token) => api.get(`/invoices/${id}/payment-success`, { params: { token } }),
   paymentCancel:  (id) => api.get(`/invoices/${id}/payment-cancel`),
@@ -127,6 +142,8 @@ export const upsellApi = {
   index:   (params) => api.get('/upsell-suggestions', { params }),
   approve: (id)     => api.patch(`/upsell-suggestions/${id}/approve`),
   reject:  (id)     => api.patch(`/upsell-suggestions/${id}/reject`),
+  send:    (id)     => api.patch(`/upsell-suggestions/${id}/send`),
+  undo:    (id)     => api.patch(`/upsell-suggestions/${id}/undo`),
 }
 
 export const assetsApi = {
@@ -137,6 +154,28 @@ export const assetsApi = {
   }),
   markDeliverable: (projectId, id) => api.patch(`/projects/${projectId}/assets/${id}/deliverable`),
   destroy:         (projectId, id) => api.delete(`/projects/${projectId}/assets/${id}`),
+}
+
+/** Agency Drive — Assets → Project files (server disk storage) */
+export const driveApi = {
+  index:          () => api.get('/drive'),
+  createFolder:   (data) => api.post('/drive/folders', data),
+  updateFolder:   (id, data) => api.put(`/drive/folders/${id}`, data),
+  trashFolder:    (id) => api.post(`/drive/folders/${id}/trash`),
+  restoreFolder:  (id) => api.post(`/drive/folders/${id}/restore`),
+  destroyFolder:  (id) => api.delete(`/drive/folders/${id}`),
+  uploadFile:     (formData) => api.post('/drive/files', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
+  downloadFile:   (id) => api.get(`/drive/files/${id}/download`, { responseType: 'blob' }),
+  renameFile:     (id, original_name) => api.put(`/drive/files/${id}`, { original_name }),
+  copyFile:       (id) => api.post(`/drive/files/${id}/copy`),
+  replaceContent: (id, formData) => api.put(`/drive/files/${id}/content`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
+  destroyFile:    (id) => api.delete(`/drive/files/${id}`),
+  restoreFile:    (id) => api.post(`/drive/files/${id}/restore`),
+  forceDestroyFile: (id) => api.delete(`/drive/files/${id}/force`),
 }
 
 export const alertsApi = {
@@ -152,14 +191,25 @@ export const agencyApi = {
 }
 
 export const teamApi = {
-  index:        ()              => api.get('/team'),
-  invite:       (data)          => api.post('/team/invite', data),
-  resendInvite: (id)            => api.post(`/team/${id}/resend-invite`),
-  update:       (id, data)      => api.put(`/team/${id}`, data),
-  uploadAvatar: (id, formData)  => api.post(`/team/${id}/avatar`, formData, {
+  index:         ()              => api.get('/team'),
+  show:          (id)            => api.get(`/team/${id}`),
+  invite:        (data)          => api.post('/team/invite', data),
+  resendInvite:  (id, data)      => api.post(`/team/${id}/resend-invite`, data || {}),
+  revokeAccess:  (id)            => api.post(`/team/${id}/revoke-access`),
+  restoreAccess: (id)            => api.post(`/team/${id}/restore-access`),
+  update:        (id, data)      => api.put(`/team/${id}`, data),
+  updateAvailability: (id, availability) => api.patch(`/team/${id}/availability`, { availability }),
+  uploadAvatar:  (id, formData)  => api.post(`/team/${id}/avatar`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   }),
-  remove:       (id)            => api.delete(`/team/${id}`),
+  remove:        (id)            => api.delete(`/team/${id}`),
+}
+
+export const rolesApi = {
+  index:  ()         => api.get('/roles'),
+  store:  (data)     => api.post('/roles', data),
+  update: (id, data) => api.put(`/roles/${id}`, data),
+  remove: (id)       => api.delete(`/roles/${id}`),
 }
 
 export const departmentsApi = {
@@ -180,6 +230,12 @@ export const integrationsApi = {
   index:      ()                    => api.get('/integrations'),
   connect:    (provider, credentials) => api.post(`/integrations/${provider}/connect`, { credentials }),
   disconnect: (provider)            => api.post(`/integrations/${provider}/disconnect`),
+  oauthStart: (provider)            => api.get(`/integrations/${provider}/oauth/start`),
+  oauthDemo:  (provider, state)     => api.post(`/integrations/${provider}/oauth/demo`, { state }),
+}
+
+export const meetingsApi = {
+  create: (data) => api.post('/meetings', data),
 }
 
 export const workSessionsApi = {
@@ -190,6 +246,7 @@ export const workSessionsApi = {
 
 export const timeOverviewApi = {
   get: () => api.get('/time-overview'),
+  teamPresence: () => api.get('/time/team-presence'),
 }
 
 export const meApi = {
@@ -197,8 +254,10 @@ export const meApi = {
 }
 
 export const messagesApi = {
-  index: (projectId)       => api.get(`/projects/${projectId}/messages`),
+  index: (projectId, params = {}) => api.get(`/projects/${projectId}/messages`, { params }),
   store: (projectId, data) => api.post(`/projects/${projectId}/messages`, data),
+  markRead: (projectId, data = {}) => api.post(`/projects/${projectId}/messages/read`, data),
+  unread: () => api.get('/messages/unread'),
 }
 
 export const sentimentApi = {
@@ -206,28 +265,45 @@ export const sentimentApi = {
 }
 
 export const aiApi = {
+  credits:         ()              => api.get('/ai/credits'),
   analyzeFeedback: (data)      => api.post('/ai/analyze-feedback', data),
   getSentiment:    (data)      => api.post('/ai/sentiment', data),
   getHealthScore:  (projectId) => api.post('/ai/health-score', { project_id: projectId }),
-  getUpsell:       (projectId) => api.post('/ai/upsell', { project_id: projectId }),
+  getUpsell:       (projectId, opts = {}) => api.post('/ai/upsell', {
+    project_id: projectId,
+    ...(opts.force != null ? { force: opts.force } : {}),
+  }),
   estimateHours:   (data)      => api.post('/ai/estimate-hours', data),
   generateBrief:   (data)      => api.post('/ai/brief-generator', data),
   generateDigest:  (projectId) => api.post('/ai/digest', { project_id: projectId }),
+  invoiceReminder: (invoiceId) => api.post('/ai/invoice-reminder', { invoice_id: invoiceId }),
 }
 
 // Feedback/approvals reuse the existing authenticated project-scoped endpoints (RevisionController /
 // ApprovalController) — no need to duplicate that business logic under the /portal prefix.
-// Invoicing (listInvoices) isn't built yet (Section 6 B5) — still 404s to mock data in components.
 export const portalApi = {
   getBranding:    (slug)                       => api.get(`/portal/${slug}/branding`),
   listProjects:   (slug)                       => api.get(`/portal/${slug}/projects`),
   getProgress:    (slug, projectId)            => api.get(`/portal/${slug}/projects/${projectId}/progress`),
+  listTeam:       (slug, projectId)            => api.get(`/portal/${slug}/projects/${projectId}/team`),
   submitFeedback: (slug, projectId, data)      => api.post(`/projects/${projectId}/revisions`, data),
   listFeedback:   (slug, projectId)            => api.get(`/projects/${projectId}/revisions`),
   listApprovals:  (slug, projectId)            => api.get(`/projects/${projectId}/approvals`),
   approve:        (slug, projectId, approvalId)         => api.patch(`/projects/${projectId}/approvals/${approvalId}/approve`),
   reject:         (slug, projectId, approvalId, reason) => api.patch(`/projects/${projectId}/approvals/${approvalId}/reject`, { reason }),
   listInvoices:   (slug)                       => api.get(`/portal/${slug}/invoices`),
+  listAssets:     (slug)                       => api.get(`/portal/${slug}/assets`),
+  uploadAsset:    (slug, file)                 => {
+    const form = new FormData()
+    form.append('file', file)
+    return api.post(`/portal/${slug}/assets`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
+  downloadAsset:  (slug, fileId)               => api.get(`/portal/${slug}/assets/files/${fileId}/download`, {
+    responseType: 'blob',
+  }),
+  deleteAsset:    (slug, fileId)               => api.delete(`/portal/${slug}/assets/files/${fileId}`),
 }
 
 export default api

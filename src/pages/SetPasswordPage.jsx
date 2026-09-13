@@ -54,12 +54,13 @@ export default function SetPasswordPage() {
   useEffect(() => {
     if (status !== 'success') return
 
+    const email = invite?.email ? encodeURIComponent(invite.email) : ''
     const timer = setTimeout(() => {
-      navigate('/login', { replace: true })
+      navigate(email ? `/login?email=${email}` : '/login', { replace: true })
     }, 2500)
 
     return () => clearTimeout(timer)
-  }, [status, navigate])
+  }, [status, navigate, invite?.email])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -113,7 +114,7 @@ export default function SetPasswordPage() {
             </h1>
             <p className="mt-1.5 text-sm leading-snug text-[#6b7280]">
               {status === 'success'
-                ? 'Your account is ready. Redirecting to login…'
+                ? 'Your account is ready. Redirecting to login with your email…'
                 : 'Create a password to access your Sparkdraw workspace.'}
             </p>
 

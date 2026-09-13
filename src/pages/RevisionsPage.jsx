@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Sparkles, ArrowDown } from 'lucide-react'
 import { toast } from 'sonner'
 import PageWrapper from '../components/layout/PageWrapper'
-import PageHeader from '../components/layout/PageHeader'
+import FloatPageHeader from '../components/layout/FloatPageHeader'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -112,13 +112,15 @@ export default function RevisionsPage() {
   }, [revisions])
 
   return (
-    <PageWrapper>
-      <div className="sd-page">
-        <PageHeader
+    <PageWrapper
+      pageActions={
+        <FloatPageHeader
           title="Revisions"
           subtitle="Client feedback, translated into structured tasks by AI (C1 Feedback Translator)."
         />
-
+      }
+    >
+      <div className="sd-page sd-page--team">
         <div className="flex flex-wrap gap-1.5">
           {STATUS_FILTERS.map((f) => (
             <button

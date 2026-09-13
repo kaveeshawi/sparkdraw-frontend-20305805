@@ -54,8 +54,8 @@ export default function DashboardProjectsOverview({ projects = [], loading = fal
   const [filter, setFilter] = useState('all')
 
   const rows = useMemo(() => {
-    if (filter === 'all') return projects
-    return projects.filter((p) => p.status === filter)
+    const filtered = filter === 'all' ? projects : projects.filter((p) => p.status === filter)
+    return filtered.slice(0, 5)
   }, [filter, projects])
 
   return (

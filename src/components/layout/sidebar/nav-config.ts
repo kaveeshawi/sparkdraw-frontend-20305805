@@ -17,6 +17,7 @@ import {
   IconPlugConnected,
   type Icon,
 } from '@tabler/icons-react'
+import { canAccessClients } from '@/lib/roles'
 
 export type AgencyRole = 'admin' | 'pm' | 'member' | 'client'
 
@@ -31,6 +32,8 @@ export type NavItem = {
   badgeKey?: BadgeKey
   badgeVariant?: 'default' | 'primary' | 'destructive' | 'new' | 'ai'
   roles?: AgencyRole[]
+  /** Optional permission gate — special keys like clients.access */
+  permission?: 'clients.access'
   /** Prefixes that mark this item active (for section hubs) */
   activePrefixes?: string[]
   /** Visual variant for differentiated items */
@@ -67,7 +70,9 @@ export const PRIMARY_NAV: NavItem[] = [
     title: 'Clients',
     href: '/clients',
     icon: IconUsers,
-    activePrefixes: ['/clients', '/inbox'],
+    roles: ['admin', 'pm', 'member'],
+    permission: 'clients.access',
+    activePrefixes: ['/clients'],
   },
   {
     title: 'Insights',
@@ -77,7 +82,7 @@ export const PRIMARY_NAV: NavItem[] = [
     variant: 'insights',
     badge: 'AI',
     badgeVariant: 'ai',
-    activePrefixes: ['/ai-studio', '/health-scores', '/feedback-translator', '/upsell-engine'],
+    activePrefixes: ['/ai-studio'],
   },
   {
     title: 'Finance',
@@ -90,15 +95,14 @@ export const PRIMARY_NAV: NavItem[] = [
 
 /** Secondary sidebar — daily workspace tools (labeled, below primary) */
 export const SECONDARY_NAV: NavItem[] = [
-  { title: 'Tasks', href: '/tasks', icon: IconListCheck, badgeKey: 'tasks' },
-  { title: 'Inbox', href: '/inbox', icon: IconInbox, badgeKey: 'inbox', roles: ['admin', 'pm'] },
+  { title: 'Tasks', href: '/tasks', icon: IconListCheck },
+  { title: 'Inbox', href: '/inbox', icon: IconInbox, badgeKey: 'inbox', roles: ['admin', 'pm', 'member'] },
   { title: 'Calendar', href: '/calendar', icon: IconCalendar },
   { title: 'Time', href: '/workload', icon: IconClock },
   {
     title: 'Revisions',
     href: '/revisions',
     icon: IconRefresh,
-    badgeKey: 'revisions',
     roles: ['admin', 'pm'],
   },
   { title: 'Assets', href: '/assets', icon: IconFolder },
@@ -137,25 +141,25 @@ export const COMMAND_PALETTE_SECTIONS: NavSection[] = [
   {
     title: 'Clients',
     items: [
-      { title: 'Clients', href: '/clients', icon: IconUsers },
-      { title: 'Inbox', href: '/inbox', icon: IconInbox, roles: ['admin', 'pm'] },
+      { title: 'Clients', href: '/clients', icon: IconUsers, roles: ['admin', 'pm', 'member'], permission: 'clients.access' },
+      { title: 'Inbox', href: '/inbox', icon: IconInbox, roles: ['admin', 'pm', 'member'] },
     ],
   },
   {
     title: 'Insights',
     roles: ['admin', 'pm'],
     items: [
-      { title: 'AI Studio', href: '/ai-studio', icon: IconSparkles },
-      { title: 'Health Scores', href: '/health-scores', icon: IconHeartbeat },
-      { title: 'Feedback Translator', href: '/feedback-translator', icon: IconMessageChatbot },
-      { title: 'Upsell Suggestions', href: '/upsell-engine', icon: IconTrendingUp },
+      { title: 'AI Insights', href: '/ai-studio', icon: IconSparkles },
+      { title: 'Health Scores', href: '/ai-studio?section=health', icon: IconHeartbeat },
+      { title: 'Feedback Translator', href: '/ai-studio?section=translator', icon: IconMessageChatbot },
+      { title: 'Upsell Suggestions', href: '/ai-studio?section=upsell', icon: IconTrendingUp },
     ],
   },
   {
     title: 'Finance',
     roles: ['admin'],
     items: [
-      { title: 'Invoices', href: '/invoices', icon: IconReceipt },
+      { title: 'Finance', href: '/invoices', icon: IconReceipt },
     ],
   },
   {
@@ -176,26 +180,34 @@ function roleAllowed(roles: AgencyRole[] | undefined, userRole: string | undefin
   return roles.includes(userRole as AgencyRole)
 }
 
-export function filterNavItems(items: NavItem[], userRole: string | undefined): NavItem[] {
-  return items.filter((item) => roleAllowed(item.roles, userRole))
+function permissionAllowed(permission: NavItem['permission'], user: unknown): boolean {
+  if (!permission) return true
+  if (permission === 'clients.access') return canAccessClients(user)
+  return true
 }
 
-export function getPrimaryNavForRole(userRole: string | undefined): NavItem[] {
-  return filterNavItems(PRIMARY_NAV, userRole)
+export function filterNavItems(items: NavItem[], userRole: string | undefined, user?: unknown): NavItem[] {
+  return items.filter(
+    (item) => roleAllowed(item.roles, userRole) && permissionAllowed(item.permission, user),
+  )
 }
 
-export function getSecondaryNavForRole(userRole: string | undefined): NavItem[] {
-  return filterNavItems(SECONDARY_NAV, userRole)
+export function getPrimaryNavForRole(userRole: string | undefined, user?: unknown): NavItem[] {
+  return filterNavItems(PRIMARY_NAV, userRole, user)
 }
 
-export function getFooterNavForRole(userRole: string | undefined): FooterNavItem[] {
-  return filterNavItems(SIDEBAR_FOOTER, userRole) as FooterNavItem[]
+export function getSecondaryNavForRole(userRole: string | undefined, user?: unknown): NavItem[] {
+  return filterNavItems(SECONDARY_NAV, userRole, user)
 }
 
-export function getCommandPaletteSectionsForRole(userRole: string | undefined): NavSection[] {
+export function getFooterNavForRole(userRole: string | undefined, user?: unknown): FooterNavItem[] {
+  return filterNavItems(SIDEBAR_FOOTER, userRole, user) as FooterNavItem[]
+}
+
+export function getCommandPaletteSectionsForRole(userRole: string | undefined, user?: unknown): NavSection[] {
   return COMMAND_PALETTE_SECTIONS.map((section) => ({
     ...section,
-    items: filterNavItems(section.items, userRole),
+    items: filterNavItems(section.items, userRole, user),
   })).filter((section) => section.items.length > 0)
 }
 
@@ -221,8 +233,9 @@ export function isNavItemActive(item: NavItem, pathname: string): boolean {
 export function getActivePrimaryNavItem(
   pathname: string,
   userRole: string | undefined,
+  user?: unknown,
 ): NavItem | undefined {
-  const items = getPrimaryNavForRole(userRole)
+  const items = getPrimaryNavForRole(userRole, user)
   let best: NavItem | undefined
   let bestLen = -1
 

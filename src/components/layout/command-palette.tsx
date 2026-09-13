@@ -27,7 +27,7 @@ type SearchItem = {
   action?: 'newProject'
 }
 
-function buildSearchItems(onNewProject: (() => void) | undefined, userRole: string | undefined): SearchItem[] {
+function buildSearchItems(onNewProject: (() => void) | undefined, user: { role?: string } | null | undefined): SearchItem[] {
   const items: SearchItem[] = []
 
   if (onNewProject) {
@@ -39,7 +39,7 @@ function buildSearchItems(onNewProject: (() => void) | undefined, userRole: stri
     })
   }
 
-  getCommandPaletteSectionsForRole(userRole).forEach((group) => {
+  getCommandPaletteSectionsForRole(user?.role, user).forEach((group) => {
     group.items.forEach((item) => {
       items.push({
         id: `${group.title ?? 'nav'}-${item.title}-${item.href}`,
@@ -136,8 +136,8 @@ export default function CommandPalette({ onNewProject, mode = 'bar' }: CommandPa
   const { user } = useAuthStore()
 
   const allItems = useMemo(
-    () => buildSearchItems(onNewProject, user?.role),
-    [onNewProject, user?.role],
+    () => buildSearchItems(onNewProject, user),
+    [onNewProject, user],
   )
 
   const filtered = useMemo(() => {

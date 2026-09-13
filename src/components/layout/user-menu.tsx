@@ -1,4 +1,3 @@
-import { Link } from 'react-router-dom'
 import {
   IconCreditCard,
   IconLogout,
@@ -18,6 +17,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { getInitials } from '@/lib/utils'
 import useAuthStore from '@/store/authStore'
+import useSettingsStore from '@/store/settingsStore'
 
 const ROLE_LABELS: Record<string, string> = {
   admin: 'Agency Admin',
@@ -28,6 +28,7 @@ const ROLE_LABELS: Record<string, string> = {
 
 export function UserMenu() {
   const { user, logout } = useAuthStore()
+  const openSettings = useSettingsStore((s) => s.openSettings)
 
   if (!user) return null
 
@@ -74,11 +75,14 @@ export function UserMenu() {
             <IconUserCircle size={18} stroke={1.75} />
             Account
           </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <Link to="/settings">
-              <IconSettings size={18} stroke={1.75} />
-              Settings
-            </Link>
+          <DropdownMenuItem
+            onSelect={(e) => {
+              e.preventDefault()
+              openSettings('company')
+            }}
+          >
+            <IconSettings size={18} stroke={1.75} />
+            Settings
           </DropdownMenuItem>
           <DropdownMenuItem>
             <IconCreditCard size={18} stroke={1.75} />

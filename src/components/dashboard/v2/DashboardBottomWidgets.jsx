@@ -1,6 +1,15 @@
 import { Link } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 
+function initials(name = '') {
+  return String(name)
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase() || '')
+    .join('') || '?'
+}
+
 export function DashboardHealthWidget({ health = null, loading = false }) {
   const green = Number(health?.green_count || 0)
   const amber = Number(health?.amber_count || 0)
@@ -62,18 +71,55 @@ export function DashboardHealthWidget({ health = null, loading = false }) {
   )
 }
 
-export function DashboardTeamWorkload() {
+export function DashboardTeamWorkload({ presence = null }) {
+  const members = [...(presence?.members || [])]
+    .sort((a, b) => (b.active_tasks || 0) - (a.active_tasks || 0) || (b.hours_this_week || 0) - (a.hours_this_week || 0))
+    .slice(0, 5)
+
+  const maxHours = Math.max(...members.map((m) => Number(m.hours_this_week) || 0), 1)
+
   return (
     <section className="sd-dash-v2__widget">
       <div className="sd-dash-v2__widget-head">
         <h3 className="sd-dash-v2__widget-title">Team Workload</h3>
-        <Link to="/team" className="sd-dash-v2__widget-link">
-          View team →
+        <Link to="/workload" className="sd-dash-v2__widget-link">
+          View Time →
         </Link>
       </div>
-      <p className="text-sm text-muted-foreground">
-        Insufficient events — workload will appear when capacity data is connected.
-      </p>
+      {members.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          Team presence will show capacity once members are on the floor.
+        </p>
+      ) : (
+        <ul className="sd-dash-v2__workload">
+          {members.map((m) => {
+            const hours = Number(m.hours_this_week) || 0
+            const pct = Math.min(100, Math.round((hours / 40) * 100))
+            return (
+              <li key={m.user_id} className="sd-dash-v2__workload-row">
+                <span className="sd-dash-v2__workload-avatar">{initials(m.name)}</span>
+                <div className="sd-dash-v2__workload-meta">
+                  <strong>{m.name}</strong>
+                  <span>
+                    {m.active_tasks || 0} tasks · {hours}h this week
+                    {m.is_clocked_in ? ' · on duty' : ''}
+                  </span>
+                  <div className="sd-dash-v2__workload-track">
+                    <div
+                      className="sd-dash-v2__workload-fill"
+                      style={{
+                        width: `${Math.max(4, Math.round((hours / maxHours) * 100))}%`,
+                        background: pct >= 90 ? '#ef4444' : pct >= 70 ? '#f59e0b' : '#22c55e',
+                      }}
+                    />
+                  </div>
+                </div>
+                <em className="tabular-nums">{pct}%</em>
+              </li>
+            )
+          })}
+        </ul>
+      )}
     </section>
   )
 }
@@ -121,7 +167,7 @@ export function DashboardRiskAlerts({ health = null }) {
     <section className="sd-dash-v2__widget">
       <div className="sd-dash-v2__widget-head">
         <h3 className="sd-dash-v2__widget-title">AI Risk Alerts</h3>
-        <Link to="/health-scores" className="sd-dash-v2__widget-link">
+        <Link to="/ai-studio?section=health" className="sd-dash-v2__widget-link">
           View all →
         </Link>
       </div>

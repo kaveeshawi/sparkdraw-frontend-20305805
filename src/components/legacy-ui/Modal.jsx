@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { IconX } from '@tabler/icons-react'
 
-export default function Modal({ open, onClose, title, subtitle, icon: Icon, children, footer, wide = false }) {
+export default function Modal({ open, onClose, title, subtitle, icon: Icon, children, footer, wide = false, extraWide = false }) {
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose?.() }
     if (open) document.addEventListener('keydown', onKey)
@@ -20,14 +20,16 @@ export default function Modal({ open, onClose, title, subtitle, icon: Icon, chil
 
   if (!open) return null
 
+  const maxWidth = extraWide ? '1100px' : wide ? '920px' : '560px'
+
   return createPortal(
     <div
       onClick={(e) => { if (e.target === e.currentTarget) onClose?.() }}
       className="sd-modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-[#11112a]/45 p-5 backdrop-blur-sm"
     >
       <div
-        className="sd-modal-panel sd-glass sd-card--grad-border relative w-full max-w-[560px] overflow-hidden"
-        style={{ maxWidth: wide ? '780px' : '560px' }}
+        className="sd-modal-panel sd-glass sd-card--grad-border relative w-full overflow-hidden"
+        style={{ maxWidth }}
         onClick={(e) => e.stopPropagation()}
       >
         <div

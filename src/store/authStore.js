@@ -17,7 +17,7 @@ const useAuthStore = create(
           const { token, user } = res.data.data
           localStorage.setItem('sparkdraw-token', token)
           set({ user, token, isAuthenticated: true, isLoading: false })
-          return { success: true, role: user.role }
+          return { success: true, role: user.role, userId: user.id, user }
         } catch (error) {
           set({ isLoading: false })
           const message = error.response?.data?.message || 'Invalid email or password'

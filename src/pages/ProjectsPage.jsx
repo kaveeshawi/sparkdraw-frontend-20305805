@@ -25,6 +25,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import NewProjectModal from '../components/modals/NewProjectModal'
+import EditProjectModal from '../components/modals/EditProjectModal'
 import ManageServicesModal from '../components/projects/ManageServicesModal'
 import ProjectCard from '../components/projects/ProjectCard'
 import ProjectRow from '../components/projects/ProjectRow'
@@ -57,6 +58,7 @@ export default function ProjectsPage() {
   const { projects, summary, fetchProjects, isLoading } = useProjectStore()
   const [showNewProject, setShowNewProject] = useState(false)
   const [showManageServices, setShowManageServices] = useState(false)
+  const [editingProject, setEditingProject] = useState(null)
   const [viewMode, setViewMode] = useState('thumbnail')
   const [search, setSearch] = useState('')
   const [filterId, setFilterId] = useState('all')
@@ -245,6 +247,8 @@ export default function ProjectsPage() {
               key={project.id}
               project={project}
               onOpen={openBoard}
+              canEdit={canCreate}
+              onEdit={setEditingProject}
             />
           ))}
           {canCreate ? (
@@ -265,6 +269,8 @@ export default function ProjectsPage() {
               key={project.id}
               project={project}
               onOpen={openBoard}
+              canEdit={canCreate}
+              onEdit={setEditingProject}
             />
           ))}
           {canCreate ? (
@@ -390,6 +396,20 @@ export default function ProjectsPage() {
           setShowNewProject(false)
         }}
       />
+
+      {canCreate ? (
+        <EditProjectModal
+          open={!!editingProject}
+          onOpenChange={(open) => {
+            if (!open) setEditingProject(null)
+          }}
+          project={editingProject}
+          onUpdated={() => {
+            fetchProjects(true)
+            setEditingProject(null)
+          }}
+        />
+      ) : null}
 
       <ManageServicesModal
         open={showManageServices}

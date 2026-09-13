@@ -79,7 +79,8 @@ export function mergeMemberProfile(agencyId, member) {
   const avatar_url = member.avatar_url || local.avatar_url || ''
   const avatar_path = member.avatar_path || local.avatar_path || ''
   const localPreview =
-    local.photo_preview && !local.photo_preview.startsWith('blob:')
+    local.photo_preview
+    && !String(local.photo_preview).startsWith('blob:')
       ? local.photo_preview
       : ''
 

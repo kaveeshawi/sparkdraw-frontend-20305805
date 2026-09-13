@@ -19,6 +19,8 @@ export const EMPLOYMENT_LABELS = {
   full_time: 'Full time',
   part_time: 'Part time',
   contractor: 'Contractor',
+  freelance: 'Freelance',
+  intern: 'Intern',
 }
 
 export const ROLE_LABELS = {
@@ -32,15 +34,22 @@ export const INVITE_STATUS_LABELS = {
   invite_pending: 'Invite sent',
   invite_not_sent: 'Invite not sent',
   invite_expired: 'Invite expired',
+  access_revoked: 'Access revoked',
+}
+
+export function isPendingInvite(status) {
+  return status === 'invite_pending' || status === 'invite_not_sent' || status === 'invite_expired'
 }
 
 export function memberNeedsInvite(status) {
-  return status && status !== 'active'
+  // Active members can still regenerate login credentials
+  return Boolean(status) && status !== 'access_revoked'
 }
 
 export function inviteActionLabel(status) {
-  if (status === 'invite_pending') return 'Resend invitation'
-  return 'Send invitation'
+  if (status === 'active') return 'Reset login credentials'
+  if (status === 'invite_pending') return 'Resend credentials'
+  return 'Create login credentials'
 }
 
 export const TEAM_FILTER_PILLS = [
@@ -56,7 +65,7 @@ export function matchesMemberFilter(member, filterId) {
   if (filterId === 'online') return member?.availability === 'available'
   if (filterId === 'offline') return member?.availability !== 'available'
   if (filterId === 'pm') return member?.role === 'pm'
-  if (filterId === 'pending') return memberNeedsInvite(member?.invite_status)
+  if (filterId === 'pending') return isPendingInvite(member?.invite_status)
   return true
 }
 
@@ -96,7 +105,26 @@ export function formatDepartment(dept, member) {
   return dept?.trim() || '—'
 }
 
-export function handleContactAction(e, label) {
+export function handleContactAction(e, actionId, member, options = {}) {
   e?.stopPropagation?.()
-  toast.info(`${label} — Coming soon`)
+  if (actionId === 'chat') {
+    if (typeof options.onChat === 'function') {
+      options.onChat()
+      return
+    }
+    if (options.chatHref) {
+      window.location.href = options.chatHref
+      return
+    }
+    if (member?.id) {
+      window.location.href = `/inbox?channel=team&member=${member.id}`
+      return
+    }
+  }
+  if (actionId === 'mail' && member?.email) {
+    window.location.href = `mailto:${member.email}`
+    return
+  }
+  const labels = { chat: 'Chat', mail: 'Mail', whatsapp: 'WhatsApp', teams: 'Teams' }
+  toast.info(`${labels[actionId] || 'Action'} — Coming soon`)
 }

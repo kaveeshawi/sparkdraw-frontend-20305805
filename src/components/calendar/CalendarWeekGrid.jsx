@@ -1,9 +1,16 @@
 import { IconClock } from '@tabler/icons-react'
 import { cn, getInitials } from '@/lib/utils'
-import { addDays, formatTimeRange, minutesFromMidnight, startOfWeekMonday, toDateKey, WEEKDAY_LABELS } from './calendar-utils'
+import {
+  addDays,
+  formatTimeRange,
+  minutesFromMidnight,
+  startOfWeekMonday,
+  toDateKey,
+  WEEKDAY_LABELS,
+} from './calendar-utils'
 
-const HOUR_START = 9
-const HOUR_END = 18
+const HOUR_START = 8
+const HOUR_END = 19
 const SLOT_COUNT = HOUR_END - HOUR_START
 const TOTAL_MINUTES = SLOT_COUNT * 60
 
@@ -20,7 +27,7 @@ function layoutOverlaps(events) {
   )
   const placed = sorted.map((event) => {
     const start = minutesFromMidnight(event.startH, event.startM)
-    const end = minutesFromMidnight(event.endH, event.endM)
+    const end = Math.max(minutesFromMidnight(event.endH, event.endM), start + 30)
     return { ...event, start, end, col: 0, cols: 1 }
   })
 
@@ -51,23 +58,27 @@ function layoutOverlaps(events) {
 }
 
 function eventTopPct(event) {
-  const start = minutesFromMidnight(event.startH, event.startM)
+  const start = Math.max(minutesFromMidnight(event.startH, event.startM), HOUR_START * 60)
   return ((start - HOUR_START * 60) / TOTAL_MINUTES) * 100
 }
 
 function eventHeightPct(event) {
   const start = minutesFromMidnight(event.startH, event.startM)
-  const end = minutesFromMidnight(event.endH, event.endM)
-  return Math.max(((end - start) / TOTAL_MINUTES) * 100, 8)
+  const end = Math.max(minutesFromMidnight(event.endH, event.endM), start + 30)
+  const clampedStart = Math.max(start, HOUR_START * 60)
+  const clampedEnd = Math.min(end, HOUR_END * 60)
+  return Math.max(((clampedEnd - clampedStart) / TOTAL_MINUTES) * 100, 8)
 }
 
-function EventCard({ event }) {
+function EventCard({ event, onSelect }) {
   const tone = TONE_STYLES[event.tone] || TONE_STYLES.blue
   const widthPct = 100 / event.cols
   const leftPct = event.col * widthPct
 
   return (
     <article
+      role="button"
+      tabIndex={0}
       className="sd-cal-v2__event"
       style={{
         top: `${eventTopPct(event)}%`,
@@ -78,9 +89,13 @@ function EventCard({ event }) {
         borderColor: tone.border,
         color: tone.text,
       }}
+      onClick={() => onSelect?.(event)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') onSelect?.(event)
+      }}
     >
       <h4 className="sd-cal-v2__event-title">{event.title}</h4>
-      <p className="sd-cal-v2__event-sub">{event.subtitle}</p>
+      {event.subtitle ? <p className="sd-cal-v2__event-sub">{event.subtitle}</p> : null}
       <p className="sd-cal-v2__event-time">
         <IconClock size={12} stroke={1.75} />
         {formatTimeRange(event.startH, event.startM, event.endH, event.endM)}
@@ -96,25 +111,39 @@ function EventCard({ event }) {
   )
 }
 
-export default function CalendarWeekGrid({ focusDate, events }) {
+export default function CalendarWeekGrid({
+  focusDate,
+  events,
+  dayCount = 5,
+  onSelectEvent,
+  onSlotClick,
+}) {
   const weekStart = startOfWeekMonday(focusDate)
-  const days = Array.from({ length: 4 }, (_, i) => addDays(weekStart, i))
+  const days = dayCount === 1
+    ? [new Date(focusDate.getFullYear(), focusDate.getMonth(), focusDate.getDate())]
+    : Array.from({ length: dayCount }, (_, i) => addDays(weekStart, i))
   const focusKey = toDateKey(focusDate)
   const hourLabels = Array.from({ length: SLOT_COUNT + 1 }, (_, i) => HOUR_START + i)
 
-  const eventsByDay = days.map((day, dayIndex) =>
-    layoutOverlaps(events.filter((e) => e.dayOffset === dayIndex)),
-  )
+  const eventsByDay = days.map((day) => {
+    const key = toDateKey(day)
+    return layoutOverlaps(events.filter((e) => e.dateKey === key))
+  })
+
+  const weekdayFor = (day) => WEEKDAY_LABELS[(day.getDay() + 6) % 7]
 
   return (
-    <div className="sd-cal-v2__week">
-      <div className="sd-cal-v2__week-head">
-        <span className="sd-cal-v2__tz">GMT+07</span>
-        {days.map((day, i) => {
+    <div className="sd-cal-v2__week" data-days={dayCount}>
+      <div
+        className="sd-cal-v2__week-head"
+        style={{ gridTemplateColumns: `4.5rem repeat(${dayCount}, minmax(0, 1fr))` }}
+      >
+        <span className="sd-cal-v2__tz">Local</span>
+        {days.map((day) => {
           const isFocus = toDateKey(day) === focusKey
           return (
-            <div key={i} className={cn('sd-cal-v2__day-head', isFocus && 'is-focus')}>
-              <span className="sd-cal-v2__day-name">{WEEKDAY_LABELS[i]}</span>
+            <div key={toDateKey(day)} className={cn('sd-cal-v2__day-head', isFocus && 'is-focus')}>
+              <span className="sd-cal-v2__day-name">{weekdayFor(day)}</span>
               <span className={cn('sd-cal-v2__day-num', isFocus && 'is-focus')}>{day.getDate()}</span>
             </div>
           )
@@ -132,7 +161,10 @@ export default function CalendarWeekGrid({ focusDate, events }) {
             </div>
           ))}
         </div>
-        <div className="sd-cal-v2__day-cols">
+        <div
+          className="sd-cal-v2__day-cols"
+          style={{ gridTemplateColumns: `repeat(${dayCount}, minmax(0, 1fr))` }}
+        >
           {hourLabels.slice(0, -1).map((h, i) => (
             <div
               key={`line-${h}`}
@@ -145,9 +177,13 @@ export default function CalendarWeekGrid({ focusDate, events }) {
             style={{ top: '100%' }}
           />
           {days.map((day, dayIndex) => (
-            <div key={day.toISOString()} className="sd-cal-v2__day-col">
+            <div
+              key={toDateKey(day)}
+              className="sd-cal-v2__day-col"
+              onDoubleClick={() => onSlotClick?.(day)}
+            >
               {eventsByDay[dayIndex].map((event) => (
-                <EventCard key={event.id} event={event} />
+                <EventCard key={event.id} event={event} onSelect={onSelectEvent} />
               ))}
             </div>
           ))}

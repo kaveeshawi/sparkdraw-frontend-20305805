@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import {
-  IconBriefcase,
   IconBuilding,
   IconCamera,
   IconCopy,
@@ -37,7 +36,6 @@ import ProjectsTab from './ProjectsTab'
 import {
   canShowContactDetails,
   displayClientName,
-  displayClientPosition,
   displayContactPersonName,
   inviteActionLabel,
   isPendingInvite,
@@ -102,7 +100,6 @@ function toFormState(client) {
     phone_country: client?.phone_country || 'LK:+94',
     phone: client?.phone_local || client?.phone || '',
     address: client?.address || '',
-    job_title: client?.job_title || '',
     tier: client?.tier || '',
     photo_preview: client?.photo_preview || client?.avatar_url || '',
     avatar_url: client?.avatar_url || null,
@@ -233,7 +230,6 @@ export default function ClientProfileModal({
         contact_email: form.email.trim(),
         first_name: form.first_name.trim(),
         last_name: form.last_name.trim(),
-        job_title: form.job_title.trim() || null,
         tier: form.tier || null,
         phone: phone || null,
         phone_country: form.phone_country || null,
@@ -421,7 +417,7 @@ export default function ClientProfileModal({
                 </div>
               </div>
 
-              <div className="sd-team-form__row sd-team-form__row--2">
+              <div className="sd-team-form__row">
                 <div className="sd-team-form__field">
                   <Label htmlFor="cp-company">Company name</Label>
                   <Input
@@ -432,16 +428,6 @@ export default function ClientProfileModal({
                     onChange={(e) => setField('company_name', e.target.value)}
                   />
                   <FieldError message={errors.company_name?.[0]} />
-                </div>
-                <div className="sd-team-form__field">
-                  <Label htmlFor="cp-position">Position</Label>
-                  <Input
-                    id="cp-position"
-                    className="sd-team-field"
-                    value={form.job_title}
-                    disabled={saving}
-                    onChange={(e) => setField('job_title', e.target.value)}
-                  />
                 </div>
               </div>
 
@@ -485,12 +471,6 @@ export default function ClientProfileModal({
                 <div className="sd-team-profile__hero-copy">
                   <div className="sd-team-profile__name-row">
                     <h2 className="sd-team-profile__name">{personName}</h2>
-                    {client.job_title ? (
-                      <span className="sd-team-profile__chip sd-team-profile__chip--position">
-                        <IconBriefcase size={12} stroke={1.75} aria-hidden />
-                        {displayClientPosition(client)}
-                      </span>
-                    ) : null}
                   </div>
                   {companyName ? (
                     <p className="sd-team-profile__company" title={companyName}>
@@ -562,7 +542,6 @@ export default function ClientProfileModal({
 
                   <ProfileSection icon={IconBuilding} tone="purple" title="Company">
                     <SectionField label="Company name" value={client.company_name} />
-                    <SectionField label="Position" value={displayClientPosition(client)} />
                     <SectionField
                       label="Client tag"
                       value={

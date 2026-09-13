@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   IconCamera,
+  IconCopy,
   IconMailForward,
   IconUserPlus,
 } from '@tabler/icons-react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -17,7 +19,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { getInitials } from '@/lib/utils'
-import { teamApi } from '@/services/api'
+import { teamApi, rolesApi } from '@/services/api'
 import { loadDepartments } from './departmentStorage'
 import TeamSelect from './TeamSelect'
 import TeamDatePicker from './TeamDatePicker'
@@ -38,6 +40,14 @@ const EMPLOYMENT_API_MAP = {
   intern: 'part_time',
 }
 
+const EMPLOYMENT_OPTIONS = [
+  { value: 'full_time', label: 'Full time' },
+  { value: 'part_time', label: 'Part time' },
+  { value: 'contractor', label: 'Contractor' },
+  { value: 'freelance', label: 'Freelance' },
+  { value: 'intern', label: 'Intern' },
+]
+
 const GENDER_OPTIONS = [
   { value: '', label: 'Select' },
   { value: 'male', label: 'Male' },
@@ -46,7 +56,8 @@ const GENDER_OPTIONS = [
   { value: 'prefer_not', label: 'Prefer not to say' },
 ]
 
-const ROLE_OPTIONS = [
+// Fallback if the roles API hasn't loaded yet — matches the seeded defaults.
+const FALLBACK_ROLE_OPTIONS = [
   { value: 'member', label: 'Team Member' },
   { value: 'pm', label: 'Project Manager' },
 ]
@@ -69,7 +80,7 @@ const EMPTY_FORM = {
   birthday: '',
   gender: '',
   job_title: '',
-  role: 'member',
+  custom_role_id: '',
   employment_type: 'full_time',
   department: '',
   start_date: '',
@@ -86,20 +97,24 @@ export default function AddMemberModal({
   open,
   onOpenChange,
   onSuccess,
+  onMemberPatched,
   onSendInvite,
   agencyId,
   departments: departmentsProp,
   members = [],
   onOpenManageDepartments,
+  onOpenManageRoles,
 }) {
   const [form, setForm] = useState(EMPTY_FORM)
   const [errors, setErrors] = useState({})
   const [submitting, setSubmitting] = useState(false)
   const [sendingInvite, setSendingInvite] = useState(false)
   const [departments, setDepartments] = useState([])
+  const [roles, setRoles] = useState([])
   const [step, setStep] = useState('form')
   const [addedMember, setAddedMember] = useState(null)
   const [inviteSent, setInviteSent] = useState(false)
+  const [temporaryPassword, setTemporaryPassword] = useState('')
   const [photoFile, setPhotoFile] = useState(null)
   const fileRef = useRef(null)
 
@@ -110,6 +125,17 @@ export default function AddMemberModal({
       ...prev,
       employee_id: prev.employee_id || peekNextEmployeeId(agencyId, members),
     }))
+    rolesApi.index()
+      .then((res) => {
+        const invitable = (res.data.data || []).filter((r) => r.base_role !== 'admin')
+        setRoles(invitable)
+        setForm((prev) => {
+          if (prev.custom_role_id) return prev
+          const defaultMember = invitable.find((r) => r.base_role === 'member' && r.is_default) || invitable[0]
+          return defaultMember ? { ...prev, custom_role_id: String(defaultMember.id) } : prev
+        })
+      })
+      .catch(() => setRoles([]))
   }, [open, agencyId, departmentsProp, members])
 
   useEffect(() => {
@@ -138,6 +164,7 @@ export default function AddMemberModal({
     setStep('form')
     setAddedMember(null)
     setInviteSent(false)
+    setTemporaryPassword('')
     setSubmitting(false)
     setSendingInvite(false)
     setPhotoFile(null)
@@ -175,6 +202,8 @@ export default function AddMemberModal({
     const phoneDigits = form.phone.trim()
     const dial = dialFromCountryValue(form.phone_country)
     const phone = phoneDigits ? `${dial} ${phoneDigits}`.trim() : ''
+    const selectedRole = roles.find((r) => String(r.id) === String(form.custom_role_id))
+    const baseRole = selectedRole?.base_role || 'member'
 
     setSubmitting(true)
     try {
@@ -182,7 +211,8 @@ export default function AddMemberModal({
       const payload = {
         name: fullName,
         email: form.email.trim(),
-        role: form.role,
+        role: baseRole,
+        ...(selectedRole ? { custom_role_id: selectedRole.id } : {}),
         department: form.department,
         employment_type: EMPLOYMENT_API_MAP[form.employment_type] || 'full_time',
         send_email: false,
@@ -200,20 +230,39 @@ export default function AddMemberModal({
       }
       const member = await onSuccess(payload)
       setAddedMember(member || { name: fullName, email: form.email.trim(), employee_id: employeeId })
+      setTemporaryPassword(member?.temporary_password || '')
       setStep('success')
       setInviteSent(false)
 
-      let avatarUrl = form.photo_preview || ''
+      let avatarUrl = ''
+      let avatarPath = null
+      let avatarVersion = null
+
       if (photoFile && member?.id) {
         try {
           const formData = new FormData()
           formData.append('avatar', photoFile)
           const uploadRes = await teamApi.uploadAvatar(member.id, formData)
-          avatarUrl = uploadRes.data.data?.avatar_url || avatarUrl
+          const uploaded = uploadRes.data.data || {}
+          avatarUrl = uploaded.avatar_url || ''
+          avatarPath = uploaded.avatar_path || null
+          avatarVersion = Date.now()
         } catch {
-          /* member was created — keep success screen even if photo upload fails */
+          /* Fall back to embedded data URL so the card still shows the photo */
+          try {
+            avatarUrl = await new Promise((resolve, reject) => {
+              const reader = new FileReader()
+              reader.onload = () => resolve(String(reader.result || ''))
+              reader.onerror = reject
+              reader.readAsDataURL(photoFile)
+            })
+            avatarVersion = Date.now()
+          } catch {
+            avatarUrl = ''
+          }
         }
       }
+
       commitEmployeeId(agencyId, employeeId)
       const profileExtras = {
         first_name: form.first_name.trim(),
@@ -226,16 +275,27 @@ export default function AddMemberModal({
         birthday: form.birthday,
         gender: form.gender,
         job_title: form.job_title.trim(),
-        role: form.role,
-        employment_type: EMPLOYMENT_API_MAP[form.employment_type] || form.employment_type,
+        role: baseRole,
+        employment_type: form.employment_type || 'full_time',
         department: form.department,
         start_date: form.start_date,
         work_location: form.work_location,
         employee_id: employeeId,
         avatar_url: avatarUrl,
+        avatar_path: avatarPath,
         photo_preview: avatarUrl,
+        avatar_version: avatarVersion,
       }
       saveMemberProfile(agencyId, member || { email: form.email.trim() }, profileExtras)
+
+      if (member?.id && (avatarUrl || avatarPath)) {
+        onMemberPatched?.(member.id, {
+          avatar_url: avatarUrl,
+          avatar_path: avatarPath,
+          photo_preview: avatarUrl,
+          avatar_version: avatarVersion,
+        })
+      }
     } catch (err) {
       const apiErrors = err.response?.data?.errors
       const message = err.response?.data?.message
@@ -248,6 +308,21 @@ export default function AddMemberModal({
     }
   }
 
+  const handleCopyCredentials = async () => {
+    const email = addedMember?.email || ''
+    if (!email || !temporaryPassword) {
+      toast.error('Credentials not ready yet')
+      return
+    }
+    const text = `Email: ${email}\nPassword: ${temporaryPassword}`
+    try {
+      await navigator.clipboard.writeText(text)
+      toast.success('Email and password copied')
+    } catch {
+      toast.error('Could not copy credentials')
+    }
+  }
+
   const handleSendInvite = async () => {
     if (!addedMember?.id || !onSendInvite) {
       setInviteSent(true)
@@ -255,26 +330,32 @@ export default function AddMemberModal({
     }
     setSendingInvite(true)
     try {
-      await onSendInvite(addedMember.id)
+      const result = await onSendInvite(addedMember.id)
+      if (result?.temporary_password) setTemporaryPassword(result.temporary_password)
       setInviteSent(true)
+      toast.success('Credentials emailed')
     } catch (err) {
       setErrors(err.response?.data?.errors || { invite: ['Could not send invite'] })
+      toast.error(err.response?.data?.message || 'Could not send invite')
     } finally {
       setSendingInvite(false)
     }
   }
 
   const handleAddAnother = () => {
+    const defaultMember = roles.find((r) => r.base_role === 'member' && r.is_default) || roles[0]
     setForm((prev) => {
       if (prev.photo_preview) URL.revokeObjectURL(prev.photo_preview)
       return {
         ...EMPTY_FORM,
         employee_id: peekNextEmployeeId(agencyId, members),
+        custom_role_id: defaultMember ? String(defaultMember.id) : '',
       }
     })
     setErrors({})
     setAddedMember(null)
     setInviteSent(false)
+    setTemporaryPassword('')
     setStep('form')
   }
 
@@ -282,6 +363,10 @@ export default function AddMemberModal({
     { value: '', label: 'Select department' },
     ...departments.map((d) => ({ value: d.name, label: d.name })),
   ]
+
+  const roleOptions = roles.length > 0
+    ? roles.map((r) => ({ value: String(r.id), label: r.name }))
+    : FALLBACK_ROLE_OPTIONS
 
   const previewName =
     `${form.first_name} ${form.last_name}`.trim() || form.email || 'New member'
@@ -346,19 +431,43 @@ export default function AddMemberModal({
                     </>
                   ) : null}
                 </p>
+                <p className="sd-team-success__hint">
+                  Share these login credentials. When they sign in, they land on Tasks so they can start work.
+                </p>
+
+                <div className="sd-team-invite-success sd-team-success__invite">
+                  <div className="sd-team-success__cred">
+                    <span>Email</span>
+                    <code>{addedMember?.email || '—'}</code>
+                  </div>
+                  <div className="sd-team-success__cred">
+                    <span>Password</span>
+                    <code>{temporaryPassword || '—'}</code>
+                  </div>
+                </div>
+
                 {inviteSent && (
-                  <p className="sd-team-success__sent">Invite email sent</p>
+                  <p className="sd-team-success__sent">Credentials emailed</p>
                 )}
                 {errors.invite?.[0] && <FieldError message={errors.invite[0]} />}
 
                 <div className="sd-team-success__actions">
                   <Button
                     className="sd-btn-gradient h-11 rounded-full px-6"
+                    onClick={handleCopyCredentials}
+                    disabled={!temporaryPassword || !addedMember?.email}
+                  >
+                    <IconCopy size={16} />
+                    Copy credentials
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="h-11 rounded-full px-5"
                     onClick={handleSendInvite}
-                    disabled={sendingInvite || inviteSent}
+                    disabled={sendingInvite || inviteSent || !addedMember?.id}
                   >
                     <IconMailForward size={16} />
-                    {sendingInvite ? 'Sending…' : inviteSent ? 'Invite sent' : 'Send invite'}
+                    {sendingInvite ? 'Sending…' : inviteSent ? 'Email sent' : 'Send email'}
                   </Button>
                   <Button
                     variant="outline"
@@ -384,13 +493,13 @@ export default function AddMemberModal({
             <DialogHeader className="sd-team-form-dialog__header">
               <DialogTitle>Add team member</DialogTitle>
               <DialogDescription>
-                Add someone to your agency workspace. You can send their invite next.
+                Add someone to your agency workspace. You’ll get login credentials to share next.
               </DialogDescription>
             </DialogHeader>
 
             <div className="sd-team-form">
               <FieldError message={errors.form?.[0]} />
-              {/* Profile pic */}
+
               <div className="sd-team-form__row sd-team-form__row--photo">
                 <div className="sd-team-form__field">
                   <Label>Profile photo</Label>
@@ -400,14 +509,14 @@ export default function AddMemberModal({
                       className="sd-team-form__photo-btn"
                       onClick={() => fileRef.current?.click()}
                     >
-                      <Avatar className="size-14">
-                        {form.photo_preview ? (
-                          <AvatarImage src={form.photo_preview} alt="" />
-                        ) : null}
-                        <AvatarFallback className="bg-primary/10 text-sm font-medium text-primary">
-                          {getInitials(previewName)}
-                        </AvatarFallback>
-                      </Avatar>
+                        <Avatar className="size-11">
+                          {form.photo_preview ? (
+                            <AvatarImage src={form.photo_preview} alt="" />
+                          ) : null}
+                          <AvatarFallback className="bg-primary/10 text-xs font-medium text-primary">
+                            {getInitials(previewName)}
+                          </AvatarFallback>
+                        </Avatar>
                     </button>
                     <Button
                       type="button"
@@ -429,7 +538,6 @@ export default function AddMemberModal({
                 </div>
               </div>
 
-              {/* First name, Last name */}
               <div className="sd-team-form__row sd-team-form__row--2">
                 <div className="sd-team-form__field">
                   <Label htmlFor="tm-first">First name</Label>
@@ -453,8 +561,18 @@ export default function AddMemberModal({
                 </div>
               </div>
 
-              {/* Phone No, Address */}
               <div className="sd-team-form__row sd-team-form__row--2">
+                <div className="sd-team-form__field">
+                  <Label htmlFor="tm-email">Email</Label>
+                  <Input
+                    id="tm-email"
+                    type="email"
+                    className="sd-team-field"
+                    value={form.email}
+                    onChange={(e) => setField('email', e.target.value)}
+                  />
+                  <FieldError message={errors.email?.[0]} />
+                </div>
                 <div className="sd-team-form__field">
                   <Label htmlFor="tm-phone">Phone No</Label>
                   <div className="sd-team-form__phone">
@@ -479,6 +597,9 @@ export default function AddMemberModal({
                   </div>
                   <FieldError message={errors.phone?.[0]} />
                 </div>
+              </div>
+
+              <div className="sd-team-form__row sd-team-form__row--3">
                 <div className="sd-team-form__field">
                   <Label htmlFor="tm-address">Address</Label>
                   <Input
@@ -487,21 +608,6 @@ export default function AddMemberModal({
                     value={form.address}
                     onChange={(e) => setField('address', e.target.value)}
                   />
-                </div>
-              </div>
-
-              {/* Email, Birthday, Gender */}
-              <div className="sd-team-form__row sd-team-form__row--3">
-                <div className="sd-team-form__field">
-                  <Label htmlFor="tm-email">Email</Label>
-                  <Input
-                    id="tm-email"
-                    type="email"
-                    className="sd-team-field"
-                    value={form.email}
-                    onChange={(e) => setField('email', e.target.value)}
-                  />
-                  <FieldError message={errors.email?.[0]} />
                 </div>
                 <div className="sd-team-form__field">
                   <Label htmlFor="tm-birthday">Birthday</Label>
@@ -524,8 +630,7 @@ export default function AddMemberModal({
                 </div>
               </div>
 
-              {/* Position, Role, Department */}
-              <div className="sd-team-form__row sd-team-form__row--3">
+              <div className="sd-team-form__row sd-team-form__row--2">
                 <div className="sd-team-form__field">
                   <Label htmlFor="tm-position">Position</Label>
                   <Input
@@ -537,12 +642,37 @@ export default function AddMemberModal({
                   />
                 </div>
                 <div className="sd-team-form__field">
-                  <Label htmlFor="tm-role">Role</Label>
+                  <Label htmlFor="tm-employment">Employment type</Label>
+                  <TeamSelect
+                    id="tm-employment"
+                    value={form.employment_type}
+                    onValueChange={(v) => setField('employment_type', v)}
+                    options={EMPLOYMENT_OPTIONS}
+                    placeholder="Select employment type"
+                  />
+                  <FieldError message={errors.employment_type?.[0]} />
+                </div>
+              </div>
+
+              <div className="sd-team-form__row sd-team-form__row--2">
+                <div className="sd-team-form__field">
+                  <div className="sd-team-form__label-row">
+                    <Label htmlFor="tm-role">Role</Label>
+                    {onOpenManageRoles ? (
+                      <button
+                        type="button"
+                        className="sd-team-form__link"
+                        onClick={onOpenManageRoles}
+                      >
+                        Manage
+                      </button>
+                    ) : null}
+                  </div>
                   <TeamSelect
                     id="tm-role"
-                    value={form.role}
-                    onValueChange={(v) => setField('role', v)}
-                    options={ROLE_OPTIONS}
+                    value={form.custom_role_id}
+                    onValueChange={(v) => setField('custom_role_id', v)}
+                    options={roleOptions}
                   />
                   <FieldError message={errors.role?.[0]} />
                 </div>
@@ -570,7 +700,6 @@ export default function AddMemberModal({
                 </div>
               </div>
 
-              {/* Start date, Work location, Employee ID */}
               <div className="sd-team-form__row sd-team-form__row--3">
                 <div className="sd-team-form__field">
                   <Label htmlFor="tm-start">Start date</Label>
@@ -607,13 +736,13 @@ export default function AddMemberModal({
             <DialogFooter className="sd-team-form-dialog__footer gap-2 sm:gap-2">
               <Button
                 variant="outline"
-                className="h-10 rounded-full px-5"
+                className="h-9 rounded-full px-5"
                 onClick={() => handleClose(false)}
               >
                 Cancel
               </Button>
               <Button
-                className="sd-btn-gradient h-10 rounded-full px-6"
+                className="sd-btn-gradient h-9 rounded-full px-6"
                 onClick={handleAddMember}
                 disabled={submitting}
               >

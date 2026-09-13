@@ -40,7 +40,6 @@ const EMPTY_FORM = {
   phone_country: 'LK:+94',
   phone: '',
   address: '',
-  job_title: '',
   tier: '',
   photo_preview: '',
 }
@@ -146,7 +145,6 @@ export default function AddClientModal({ open, onOpenChange, onSuccess }) {
         contact_email: form.email.trim(),
         first_name: form.first_name.trim(),
         last_name: form.last_name.trim(),
-        ...(form.job_title.trim() ? { job_title: form.job_title.trim() } : {}),
         ...(form.tier ? { tier: form.tier } : {}),
         ...(phone ? { phone } : {}),
         ...(form.phone_country ? { phone_country: form.phone_country } : {}),
@@ -416,7 +414,7 @@ export default function AddClientModal({ open, onOpenChange, onSuccess }) {
                 </div>
               </div>
 
-              <div className="sd-team-form__row sd-team-form__row--2">
+              <div className="sd-team-form__row">
                 <div className="sd-team-form__field">
                   <Label htmlFor="cl-company">Company name</Label>
                   <Input
@@ -427,16 +425,6 @@ export default function AddClientModal({ open, onOpenChange, onSuccess }) {
                     onChange={(e) => setField('company_name', e.target.value)}
                   />
                   <FieldError message={errors.company_name?.[0]} />
-                </div>
-                <div className="sd-team-form__field">
-                  <Label htmlFor="cl-position">Position</Label>
-                  <Input
-                    id="cl-position"
-                    className="sd-team-field"
-                    placeholder="e.g. Marketing Lead"
-                    value={form.job_title}
-                    onChange={(e) => setField('job_title', e.target.value)}
-                  />
                 </div>
               </div>
 

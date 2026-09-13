@@ -1,29 +1,65 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { IconReceipt } from '@tabler/icons-react'
-import Modal from '../legacy-ui/Modal'
-import Badge from '../legacy-ui/Badge'
-import Button from '../legacy-ui/Button'
+import {
+  IconDownload,
+  IconFileInvoice,
+  IconSend,
+  IconZoomIn,
+  IconZoomOut,
+  IconZoomReset,
+} from '@tabler/icons-react'
+import { toast } from 'sonner'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
+import InvoiceDocument from '../finance/InvoiceDocument'
+import { captureInvoicePdf, downloadPdfBlob } from '../../lib/invoicePdf'
 import useAuthStore from '../../store/authStore'
 import { invoicesApi } from '../../services/api'
+import { useFormatMoney } from '@/hooks/useAgencyCurrency'
 
 const STATUS_VARIANTS = {
-  draft: 'violet', sent: 'info', paid: 'success', overdue: 'danger',
+  draft: 'outline',
+  sent: 'info',
+  paid: 'success',
+  overdue: 'destructive',
 }
 
-export default function InvoiceDetailModal({ open, onClose, invoiceId, onUpdated }) {
+const ZOOM_MIN = 0.42
+const ZOOM_MAX = 0.95
+const ZOOM_STEP = 0.08
+const ZOOM_DEFAULT = 0.58
+
+export default function InvoiceDetailModal({
+  open,
+  onClose,
+  invoiceId,
+  onUpdated,
+  onDownloadPdf,
+}) {
+  const money = useFormatMoney()
   const navigate = useNavigate()
   const { user } = useAuthStore()
-  const [invoice, setInvoice]     = useState(null)
-  const [loading, setLoading]     = useState(false)
-  const [sending, setSending]     = useState(false)
+  const pageRef = useRef(null)
+  const [invoice, setInvoice] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [sending, setSending] = useState(false)
+  const [pdfBusy, setPdfBusy] = useState(false)
+  const [zoom, setZoom] = useState(ZOOM_DEFAULT)
 
   const isAdminOrPm = ['admin', 'pm'].includes(user?.role)
-  const isClient    = user?.role === 'client'
+  const isClient = user?.role === 'client'
 
   useEffect(() => {
     if (!open || !invoiceId) return
     setLoading(true)
+    setZoom(ZOOM_DEFAULT)
     invoicesApi.show(invoiceId)
       .then((res) => setInvoice(res.data.data))
       .catch(() => setInvoice(null))
@@ -37,6 +73,7 @@ export default function InvoiceDetailModal({ open, onClose, invoiceId, onUpdated
       const res = await invoicesApi.show(invoiceId)
       setInvoice(res.data.data)
       onUpdated?.()
+      toast.success('Invoice sent')
     } finally {
       setSending(false)
     }
@@ -47,94 +84,168 @@ export default function InvoiceDetailModal({ open, onClose, invoiceId, onUpdated
     navigate(`/invoices/${invoiceId}/pay`)
   }
 
-  if (!open) return null
+  const handlePdf = async () => {
+    if (!invoice) return
+    if (onDownloadPdf) {
+      onDownloadPdf(invoice)
+      return
+    }
+    setPdfBusy(true)
+    try {
+      await new Promise((r) => setTimeout(r, 50))
+      const el = pageRef.current
+      if (!el) throw new Error('Preview not ready')
+      const { blob, filename } = await captureInvoicePdf(el, {
+        filename: invoice.invoice_number || 'invoice',
+        title: invoice.invoice_number || 'Invoice',
+      })
+      downloadPdfBlob(blob, filename)
+      toast.success('PDF downloaded')
+    } catch (err) {
+      toast.error(err.message || 'PDF export failed')
+    } finally {
+      setPdfBusy(false)
+    }
+  }
+
+  const metaBits = []
+  if (invoice?.client_name || invoice?.client?.company_name) {
+    metaBits.push(invoice.client_name || invoice.client?.company_name)
+  }
+  if (invoice?.project_name || invoice?.project?.name) {
+    metaBits.push(invoice.project_name || invoice.project?.name)
+  }
+  if (invoice?.due_date) metaBits.push(`Due ${invoice.due_date}`)
+  if (invoice?.amount != null || invoice?.total != null) {
+    metaBits.push(money(invoice.total ?? invoice.amount))
+  }
 
   return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      wide
-      icon={IconReceipt}
-      title={invoice?.invoice_number || 'Invoice'}
-      subtitle={invoice ? `Created ${new Date(invoice.created_at).toLocaleDateString('en-GB')}` : ''}
-      footer={
-        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', width: '100%' }}>
-          <Button variant="cancel" onClick={onClose}>Close</Button>
-          {isAdminOrPm && invoice?.status === 'draft' && (
-            <Button onClick={handleSend} loading={sending}>Send to client</Button>
-          )}
-          {(isClient || isAdminOrPm) && ['sent', 'overdue'].includes(invoice?.status) && (
-            <Button onClick={handlePay}>
-              Pay now
-            </Button>
+    <Dialog open={open} onOpenChange={(next) => { if (!next) onClose?.() }}>
+      <DialogContent className="sd-invoice-view-dialog border-0 p-0 overflow-hidden gap-0 flex flex-col">
+        <DialogTitle className="sr-only">
+          {invoice?.invoice_number || 'Invoice'}
+        </DialogTitle>
+        <DialogDescription className="sr-only">
+          Invoice document preview
+        </DialogDescription>
+
+        <header className="sd-invoice-view-dialog__chrome">
+          <div className="sd-invoice-view-dialog__chrome-left">
+            <div className="sd-invoice-view-dialog__icon" aria-hidden>
+              <IconFileInvoice size={18} stroke={1.75} />
+            </div>
+            <div className="min-w-0">
+              <div className="sd-invoice-view-dialog__title-row">
+                <strong>{invoice?.invoice_number || (loading ? 'Loading…' : 'Invoice')}</strong>
+                {invoice?.status ? (
+                  <Badge variant={STATUS_VARIANTS[invoice.status] || 'outline'} className="capitalize">
+                    {invoice.status}
+                  </Badge>
+                ) : null}
+              </div>
+              <p className="sd-invoice-view-dialog__meta">
+                {loading ? 'Fetching invoice…' : (metaBits.join(' · ') || 'Invoice document')}
+              </p>
+            </div>
+          </div>
+
+          <div className="sd-invoice-view-dialog__chrome-actions">
+            {invoice ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="rounded-full"
+                disabled={pdfBusy}
+                onClick={handlePdf}
+              >
+                <IconDownload size={15} />
+                {pdfBusy ? 'Preparing…' : 'PDF'}
+              </Button>
+            ) : null}
+            {isAdminOrPm && invoice?.status === 'draft' ? (
+              <Button
+                type="button"
+                size="sm"
+                className="sd-btn-gradient rounded-full border-0 shadow-none"
+                disabled={sending}
+                onClick={handleSend}
+              >
+                <IconSend size={15} />
+                {sending ? 'Sending…' : 'Send'}
+              </Button>
+            ) : null}
+            {(isClient || isAdminOrPm) && ['sent', 'overdue'].includes(invoice?.status) ? (
+              <Button
+                type="button"
+                size="sm"
+                className="sd-btn-gradient rounded-full border-0 shadow-none"
+                onClick={handlePay}
+              >
+                Pay now
+              </Button>
+            ) : null}
+          </div>
+        </header>
+
+        <div className="sd-invoice-view-dialog__toolbar">
+          <span className="sd-invoice-view-dialog__toolbar-label">Document preview</span>
+          <div className="sd-sheet-preview__zoom" role="group" aria-label="Zoom">
+            <button
+              type="button"
+              className="sd-sheet-preview__zoom-btn"
+              aria-label="Zoom out"
+              disabled={zoom <= ZOOM_MIN}
+              onClick={() => setZoom((z) => Math.max(ZOOM_MIN, +(z - ZOOM_STEP).toFixed(2)))}
+            >
+              <IconZoomOut size={16} stroke={1.75} />
+            </button>
+            <button
+              type="button"
+              className="sd-sheet-preview__zoom-value"
+              aria-label="Reset zoom"
+              onClick={() => setZoom(ZOOM_DEFAULT)}
+            >
+              {Math.round(zoom * 100)}%
+            </button>
+            <button
+              type="button"
+              className="sd-sheet-preview__zoom-btn"
+              aria-label="Zoom in"
+              disabled={zoom >= ZOOM_MAX}
+              onClick={() => setZoom((z) => Math.min(ZOOM_MAX, +(z + ZOOM_STEP).toFixed(2)))}
+            >
+              <IconZoomIn size={16} stroke={1.75} />
+            </button>
+            <button
+              type="button"
+              className="sd-sheet-preview__zoom-btn"
+              aria-label="Reset zoom"
+              onClick={() => setZoom(ZOOM_DEFAULT)}
+            >
+              <IconZoomReset size={16} stroke={1.75} />
+            </button>
+          </div>
+        </div>
+
+        <div className="sd-invoice-view-dialog__stage">
+          {loading ? (
+            <div className="sd-invoice-view-dialog__loading">
+              <Skeleton className="h-[28rem] w-[min(100%,21rem)] rounded-xl" />
+            </div>
+          ) : !invoice ? (
+            <div className="sd-invoice-view-dialog__empty">
+              <IconFileInvoice size={28} stroke={1.5} />
+              <p>Invoice not found</p>
+            </div>
+          ) : (
+            <div className="sd-invoice-view-dialog__page">
+              <InvoiceDocument invoice={invoice} scale={zoom} pageRef={pageRef} />
+            </div>
           )}
         </div>
-      }
-    >
-      {loading ? (
-        <div style={{ fontSize: '12px', color: 'var(--text-hint)' }}>Loading…</div>
-      ) : !invoice ? (
-        <div style={{ fontSize: '12px', color: 'var(--text-hint)' }}>Invoice not found.</div>
-      ) : (
-        <>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-            <Badge variant={STATUS_VARIANTS[invoice.status] || 'muted'}>{invoice.status}</Badge>
-            {invoice.due_date && (
-              <span style={{ fontSize: '11px', color: 'var(--text-hint)' }}>Due {invoice.due_date}</span>
-            )}
-          </div>
-
-          <div style={{ background: 'var(--card-bg-soft)', borderRadius: '9px', padding: '12px', marginBottom: '16px' }}>
-            <div style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-primary)' }}>
-              {invoice.client_name || invoice.client?.company_name}
-            </div>
-            <div style={{ fontSize: '10px', color: 'var(--text-hint)', marginTop: '2px' }}>
-              {invoice.project_name || invoice.project?.name}
-              {invoice.client?.contact_email && ` · ${invoice.client.contact_email}`}
-            </div>
-          </div>
-
-          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '16px' }}>
-            <thead>
-              <tr style={{ borderBottom: '0.5px solid var(--border)' }}>
-                {['Description', 'Qty', 'Rate', 'Amount'].map((h) => (
-                  <th key={h} style={{ padding: '8px 6px', textAlign: 'left', fontSize: '10px', color: 'var(--text-muted)', fontWeight: 500 }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {(invoice.line_items || []).map((item, i) => (
-                <tr key={i} style={{ borderBottom: '0.5px solid var(--border-inner)' }}>
-                  <td style={{ padding: '8px 6px', fontSize: '11px' }}>{item.description}</td>
-                  <td style={{ padding: '8px 6px', fontSize: '11px' }}>{item.quantity}</td>
-                  <td style={{ padding: '8px 6px', fontSize: '11px' }}>${Number(item.rate).toFixed(2)}</td>
-                  <td style={{ padding: '8px 6px', fontSize: '11px', fontWeight: 500 }}>${Number(item.amount).toFixed(2)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
-            <div style={{ fontSize: '11px', color: 'var(--text-hint)' }}>Subtotal: ${Number(invoice.subtotal ?? invoice.total).toFixed(2)}</div>
-            <div style={{ fontSize: '11px', color: 'var(--text-hint)' }}>Tax (0%): $0.00</div>
-            <div style={{ fontSize: '18px', fontWeight: 500, color: 'var(--text-primary)' }}>
-              Total: ${Number(invoice.total ?? invoice.amount).toFixed(2)}
-            </div>
-          </div>
-
-          {invoice.notes && (
-            <div style={{ marginTop: '12px', fontSize: '11px', color: 'var(--text-muted)' }}>
-              <span style={{ fontWeight: 500 }}>Notes: </span>{invoice.notes}
-            </div>
-          )}
-
-          {(isClient || isAdminOrPm) && ['sent', 'overdue'].includes(invoice.status) && (
-            <div style={{ marginTop: '12px', fontSize: '10px', color: 'var(--warning-text)', background: 'var(--warning-fill)', padding: '8px 10px', borderRadius: '8px' }}>
-              Sandbox test mode — card payment only, no real charges.
-            </div>
-          )}
-        </>
-      )}
-    </Modal>
+      </DialogContent>
+    </Dialog>
   )
 }

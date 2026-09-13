@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import LoginPromoPanel from '@/components/auth/LoginPromoPanel'
 import SparkLogo from '@/components/auth/SparkLogo'
 import useAuthStore from '@/store/authStore'
+import { homePathForUser } from '@/lib/roles'
 import '@/styles/login.css'
 
 function GoogleIcon() {
@@ -28,9 +29,10 @@ function FacebookIcon() {
 
 export default function LoginPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { login, isLoading } = useAuthStore()
 
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState(() => searchParams.get('email') || '')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
@@ -40,7 +42,7 @@ export default function LoginPage() {
     setError('')
     const result = await login(email, password)
     if (result.success) {
-      navigate(result.role === 'client' ? '/portal' : '/', { replace: true })
+      navigate(homePathForUser(result.user || { role: result.role, id: result.userId }), { replace: true })
     } else {
       setError(result.message)
     }

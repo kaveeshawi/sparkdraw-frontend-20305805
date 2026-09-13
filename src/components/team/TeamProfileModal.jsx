@@ -1,15 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   IconBriefcase,
   IconCamera,
   IconClock,
   IconCopy,
+  IconExternalLink,
   IconMail,
   IconMailForward,
   IconPhone,
   IconPencil,
   IconTrash,
   IconUser,
+  IconUserOff,
+  IconUserCheck,
   IconX,
 } from '@tabler/icons-react'
 import { toast } from 'sonner'
@@ -26,6 +30,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { teamApi } from '@/services/api'
+import { apiErrorMessage } from '@/lib/apiError'
 import TeamSelect from './TeamSelect'
 import TeamDatePicker from './TeamDatePicker'
 import {
@@ -155,10 +160,12 @@ export default function TeamProfileModal({
   onRemoved,
   onInviteStatusChange,
 }) {
-  const [mode, setMode] = useState('view') // view | edit | confirm-remove
+  const navigate = useNavigate()
+  const [mode, setMode] = useState('view') // view | edit | confirm-remove | confirm-revoke
   const [form, setForm] = useState(null)
   const [saving, setSaving] = useState(false)
   const [removing, setRemoving] = useState(false)
+  const [revoking, setRevoking] = useState(false)
   const [sendingInvite, setSendingInvite] = useState(false)
   const [invitePanelOpen, setInvitePanelOpen] = useState(false)
   const [invitePanelData, setInvitePanelData] = useState(null)
@@ -215,25 +222,58 @@ export default function TeamProfileModal({
   const statusClass = AVAILABILITY_DOT[availability] || AVAILABILITY_DOT.offline
   const isProtected = profile.is_protected || profile.role === 'admin'
   const inviteStatus = profile.invite_status || 'active'
+  const accessRevoked = Boolean(profile.access_revoked || inviteStatus === 'access_revoked')
   const showInviteAction = canManage && !isProtected && memberNeedsInvite(inviteStatus)
+  const showRevokeAction = canManage && !isProtected && (inviteStatus === 'active' || accessRevoked)
 
   const handleSendInvite = async () => {
     setSendingInvite(true)
     try {
       const res = await teamApi.resendInvite(member.id)
-      const inviteUrl = res.data?.data?.invite_url
+      const temporaryPassword = res.data?.data?.temporary_password
       setInvitePanelData({
         id: member.id,
         email: profile.email,
-        invite_url: inviteUrl,
+        temporary_password: temporaryPassword,
       })
       setInvitePanelOpen(true)
-      onInviteStatusChange?.(member.id, 'invite_pending')
-      toast.success(res.data?.message || 'Invitation sent')
+      onInviteStatusChange?.(member.id, 'active')
+      toast.success(res.data?.message || 'Login credentials ready')
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Could not send invitation')
+      toast.error(apiErrorMessage(err, 'Could not send invitation'))
     } finally {
       setSendingInvite(false)
+    }
+  }
+
+  const handleRevokeAccess = async () => {
+    setRevoking(true)
+    try {
+      const res = await teamApi.revokeAccess(member.id)
+      const updated = res.data?.data
+      if (updated) Object.assign(member, updated)
+      onInviteStatusChange?.(member.id, 'access_revoked')
+      toast.success('Access revoked — member stays on your team')
+      setMode('view')
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Could not revoke access. Please try again.'))
+    } finally {
+      setRevoking(false)
+    }
+  }
+
+  const handleRestoreAccess = async () => {
+    setRevoking(true)
+    try {
+      const res = await teamApi.restoreAccess(member.id)
+      const updated = res.data?.data
+      if (updated) Object.assign(member, updated)
+      onInviteStatusChange?.(member.id, updated?.invite_status || 'active')
+      toast.success('Access restored')
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Could not restore access. Please try again.'))
+    } finally {
+      setRevoking(false)
     }
   }
 
@@ -374,14 +414,42 @@ export default function TeamProfileModal({
           </DialogDescription>
         </DialogHeader>
 
-        {mode === 'confirm-remove' ? (
+        {mode === 'confirm-revoke' ? (
+          <div className="sd-team-profile-confirm">
+            <div className="sd-team-profile-confirm__icon">
+              <IconUserOff size={22} stroke={1.5} />
+            </div>
+            <h3>Revoke {displayName}’s access?</h3>
+            <p>
+              They will lose login access immediately, but stay on your team roster so you can restore them later.
+            </p>
+            <div className="sd-team-profile-confirm__actions">
+              <Button
+                variant="outline"
+                className="h-10 rounded-full px-5"
+                onClick={() => setMode('view')}
+                disabled={revoking}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                className="h-10 rounded-full px-5"
+                onClick={handleRevokeAccess}
+                disabled={revoking}
+              >
+                {revoking ? 'Revoking…' : 'Revoke access'}
+              </Button>
+            </div>
+          </div>
+        ) : mode === 'confirm-remove' ? (
           <div className="sd-team-profile-confirm">
             <div className="sd-team-profile-confirm__icon">
               <IconTrash size={22} stroke={1.5} />
             </div>
             <h3>Remove {displayName}?</h3>
             <p>
-              They will lose access to this agency workspace. This cannot be undone
+              They will be permanently removed from this agency workspace. This cannot be undone
               from here.
             </p>
             <div className="sd-team-profile-confirm__actions">
@@ -710,7 +778,7 @@ export default function TeamProfileModal({
           </div>
         )}
 
-        {mode !== 'confirm-remove' && (
+        {mode !== 'confirm-remove' && mode !== 'confirm-revoke' && (
           <DialogFooter className="sd-team-profile-dialog__footer gap-2 sm:gap-2">
             {mode === 'edit' ? (
               <>
@@ -738,43 +806,71 @@ export default function TeamProfileModal({
               </>
             ) : (
               <>
-                <Button
-                  variant="outline"
-                  className="sd-team-profile-dialog__close h-10 rounded-full px-5"
-                  onClick={() => handleClose(false)}
-                >
-                  <IconX size={16} />
-                  Close
-                </Button>
                 {canManage && (
                   <div className="sd-team-profile-dialog__actions">
-                    {showInviteAction ? (
+                    <div className="sd-team-profile-dialog__actions-left">
+                      {showInviteAction ? (
+                        <Button
+                          variant="outline"
+                          className="h-10 rounded-full px-5"
+                          onClick={handleSendInvite}
+                          disabled={sendingInvite}
+                        >
+                          <IconMailForward size={16} />
+                          {sendingInvite ? 'Sending…' : inviteActionLabel(inviteStatus)}
+                        </Button>
+                      ) : null}
+                      {showRevokeAction ? (
+                        accessRevoked ? (
+                          <Button
+                            variant="outline"
+                            className="h-10 rounded-full px-5"
+                            onClick={handleRestoreAccess}
+                            disabled={revoking}
+                          >
+                            <IconUserCheck size={16} />
+                            {revoking ? 'Restoring…' : 'Restore access'}
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            className="h-10 rounded-full px-5 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                            onClick={() => setMode('confirm-revoke')}
+                            disabled={revoking}
+                          >
+                            <IconUserOff size={16} />
+                            Revoke access
+                          </Button>
+                        )
+                      ) : null}
+                      {!isProtected && (
+                        <Button
+                          variant="outline"
+                          className="h-10 rounded-full px-5 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          onClick={() => setMode('confirm-remove')}
+                        >
+                          <IconTrash size={16} />
+                          Remove
+                        </Button>
+                      )}
                       <Button
                         variant="outline"
                         className="h-10 rounded-full px-5"
-                        onClick={handleSendInvite}
-                        disabled={sendingInvite}
+                        onClick={() => setMode('edit')}
                       >
-                        <IconMailForward size={16} />
-                        {sendingInvite ? 'Sending…' : inviteActionLabel(inviteStatus)}
+                        <IconPencil size={16} />
+                        Edit
                       </Button>
-                    ) : null}
-                    {!isProtected && (
-                      <Button
-                        variant="outline"
-                        className="h-10 rounded-full px-5 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                        onClick={() => setMode('confirm-remove')}
-                      >
-                        <IconTrash size={16} />
-                        Remove
-                      </Button>
-                    )}
+                    </div>
                     <Button
-                      className="sd-btn-gradient h-10 rounded-full px-6"
-                      onClick={() => setMode('edit')}
+                      className="sd-btn-gradient h-10 min-w-[7.5rem] rounded-full px-7 text-[0.9375rem] font-semibold"
+                      onClick={() => {
+                        handleClose(false)
+                        navigate(`/team/${member.id}/portal`)
+                      }}
                     >
-                      <IconPencil size={16} />
-                      Edit
+                      Portal
+                      <IconExternalLink size={15} stroke={2} />
                     </Button>
                   </div>
                 )}

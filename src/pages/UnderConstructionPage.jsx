@@ -1,15 +1,17 @@
 import { Link } from 'react-router-dom'
 import { IconTools, IconArrowLeft } from '@tabler/icons-react'
 import PageWrapper from '../components/layout/PageWrapper'
-import PageHeader from '../components/layout/PageHeader'
+import FloatPageHeader from '../components/layout/FloatPageHeader'
 import { Button } from '@/components/ui/button'
 
 export default function UnderConstructionPage({ title, description }) {
   return (
-    <PageWrapper>
-      <div className="sd-page">
-        <PageHeader title={title} subtitle={description} />
-
+    <PageWrapper
+      pageActions={
+        <FloatPageHeader title={title} subtitle={description} />
+      }
+    >
+      <div className="sd-page sd-page--team">
         <div className="sd-card flex flex-col items-center gap-4 px-6 py-16 text-center">
           <div className="flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
             <IconTools size={26} stroke={1.5} />

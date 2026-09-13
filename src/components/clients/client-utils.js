@@ -54,15 +54,6 @@ export function displayContactName(client) {
   return displayContactPersonName(client)
 }
 
-export function displayClientPosition(client) {
-  return (
-    client?.job_title?.trim() ||
-    client?.contact_job_title?.trim() ||
-    client?.position?.trim() ||
-    '—'
-  )
-}
-
 export function sentimentBadgeLabel(client) {
   if (client?.at_risk) return 'At risk'
   if (!client?.sentiment_label) return 'No data'
@@ -151,7 +142,10 @@ export function handleClientContactAction(e, actionId, client) {
   e?.stopPropagation?.()
 
   if (actionId === 'chat') {
-    window.location.href = '/inbox'
+    const clientId = client?.id
+    window.location.href = clientId
+      ? `/inbox?channel=clients&client=${clientId}`
+      : '/inbox?channel=clients'
     return
   }
 

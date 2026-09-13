@@ -30,7 +30,7 @@ import TeamMemberCard from '../components/team/TeamMemberCard'
 import TeamMemberRow from '../components/team/TeamMemberRow'
 import TeamProfileModal from '../components/team/TeamProfileModal'
 import AddMemberModal from '../components/team/AddMemberModal'
-import ManageDepartmentsModal from '../components/team/ManageDepartmentsModal'
+import ManageAccessModal from '../components/team/ManageAccessModal'
 import { fetchDepartments } from '../components/team/departmentStorage'
 import { mergeMemberProfile, saveMemberProfile } from '../components/team/memberProfileStorage'
 import { TEAM_FILTER_PILLS, matchesMemberFilter } from '../components/team/team-utils'
@@ -60,6 +60,7 @@ export default function MembersPage() {
   const [profileMember, setProfileMember] = useState(null)
   const [showAdd, setShowAdd] = useState(false)
   const [showDepartments, setShowDepartments] = useState(false)
+  const [manageAccessTab, setManageAccessTab] = useState('departments')
   const [departments, setDepartments] = useState([])
   const [search, setSearch] = useState('')
   const [sortBy, setSortBy] = useState('recent')
@@ -140,12 +141,24 @@ export default function MembersPage() {
   const handleAddMember = async (payload) => {
     const res = await teamApi.invite(payload)
     const member = res.data.data
-    load()
+    setMembers((prev) => {
+      if (prev.some((m) => m.id === member.id)) {
+        return prev.map((m) => (m.id === member.id ? { ...m, ...member } : m))
+      }
+      return [member, ...prev]
+    })
     return member
   }
 
+  const patchMember = (id, patch) => {
+    setMembers((prev) =>
+      prev.map((m) => (m.id === id ? { ...m, ...patch } : m)),
+    )
+  }
+
   const handleSendInvite = async (memberId) => {
-    await teamApi.resendInvite(memberId)
+    const res = await teamApi.resendInvite(memberId)
+    return res.data?.data || null
   }
 
   const openProfile = (member) => setProfileMember(member)
@@ -166,7 +179,7 @@ export default function MembersPage() {
                 onClick={() => setShowDepartments(true)}
               >
                 <IconBuilding size={16} />
-                Manage departments
+                Manage departments{' & '}permissions
               </Button>
               <Button
                 variant="default"
@@ -385,10 +398,18 @@ export default function MembersPage() {
         canManage={isAdmin}
         onInviteStatusChange={(id, status) => {
           setMembers((prev) =>
-            prev.map((m) => (m.id === id ? { ...m, invite_status: status } : m)),
+            prev.map((m) => (m.id === id ? {
+              ...m,
+              invite_status: status,
+              access_revoked: status === 'access_revoked',
+            } : m)),
           )
           setProfileMember((prev) =>
-            prev?.id === id ? { ...prev, invite_status: status } : prev,
+            prev?.id === id ? {
+              ...prev,
+              invite_status: status,
+              access_revoked: status === 'access_revoked',
+            } : prev,
           )
         }}
         onUpdated={async (id, data) => {
@@ -472,22 +493,37 @@ export default function MembersPage() {
         <>
           <AddMemberModal
             open={showAdd}
-            onOpenChange={setShowAdd}
+            onOpenChange={(open) => {
+              setShowAdd(open)
+              if (!open) load()
+            }}
             onSuccess={handleAddMember}
+            onMemberPatched={patchMember}
             onSendInvite={handleSendInvite}
             agencyId={agencyId}
             departments={departments}
             members={members}
             onOpenManageDepartments={() => {
               setShowAdd(false)
+              setManageAccessTab('departments')
+              setShowDepartments(true)
+            }}
+            onOpenManageRoles={() => {
+              setShowAdd(false)
+              setManageAccessTab('roles')
               setShowDepartments(true)
             }}
           />
-          <ManageDepartmentsModal
+          <ManageAccessModal
             open={showDepartments}
-            onOpenChange={setShowDepartments}
+            onOpenChange={(open) => {
+              setShowDepartments(open)
+              if (!open) setManageAccessTab('departments')
+            }}
             agencyId={agencyId}
             members={enrichedMembers}
+            canManage={isAdmin}
+            initialTab={manageAccessTab}
             onDepartmentsChange={setDepartments}
             onDepartmentRenamed={(oldName, newName) => {
               const oldNeedle = oldName.trim().toLowerCase()

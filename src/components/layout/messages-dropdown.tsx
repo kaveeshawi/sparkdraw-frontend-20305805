@@ -11,6 +11,8 @@ import {
 import { clientsApi, projectsApi, messagesApi } from '@/services/api'
 import useAuthStore from '@/store/authStore'
 import { getInitials } from '@/lib/utils'
+import useInboxUnread, { requestInboxUnreadRefresh } from '@/hooks/useInboxUnread'
+import UnreadBadge from '@/components/inbox/UnreadBadge'
 
 function normalizeList(payload, key) {
   if (Array.isArray(payload)) return payload
@@ -26,6 +28,7 @@ type Thread = {
 
 export function MessagesDropdown() {
   const { user } = useAuthStore()
+  const unread = useInboxUnread()
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [clients, setClients] = useState([])
@@ -76,9 +79,15 @@ export function MessagesDropdown() {
     setLoadingMessages(true)
     messagesApi
       .index(projectId)
-      .then((res) => {
+      .then(async (res) => {
         const list = (res.data.data || []).slice().reverse()
         setMessages(list)
+        try {
+          await messagesApi.markRead(projectId)
+          requestInboxUnreadRefresh()
+        } catch {
+          /* ignore */
+        }
       })
       .catch(() => setMessages([]))
       .finally(() => setLoadingMessages(false))
@@ -135,6 +144,7 @@ export function MessagesDropdown() {
 
   const hasThreads = threads.length > 0
   const inChat = selectedClientId !== null
+  const unreadTotal = unread.clientsTotal
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
@@ -143,10 +153,10 @@ export function MessagesDropdown() {
           variant="ghost"
           size="icon"
           className="sd-header-icon-btn relative"
-          aria-label="Messages"
+          aria-label={unreadTotal > 0 ? `Messages, ${unreadTotal} unread` : 'Messages'}
         >
           <IconMessageCircle size={18} stroke={1.75} />
-          {hasThreads && <span className="sd-header-notify-dot" />}
+          {unreadTotal > 0 && <span className="sd-header-notify-dot" />}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
@@ -180,8 +190,8 @@ export function MessagesDropdown() {
                   : 'No client chats yet'}
             </p>
           </div>
-          {!inChat && hasThreads && (
-            <span className="sd-notifications-panel__badge">{threads.length}</span>
+          {!inChat && unreadTotal > 0 && (
+            <span className="sd-notifications-panel__badge">{unreadTotal > 99 ? '99+' : unreadTotal}</span>
           )}
         </div>
 
@@ -248,27 +258,31 @@ export function MessagesDropdown() {
                   </p>
                 </div>
               ) : (
-                threads.map(({ client, preview, project }) => (
-                  <button
-                    key={client.id}
-                    type="button"
-                    className="sd-notifications-item w-full text-left"
-                    onClick={() => setSelectedClientId(client.id)}
-                  >
-                    <Avatar className="size-9 shrink-0">
-                      <AvatarFallback className="bg-primary/10 text-xs font-medium text-primary">
-                        {getInitials(client.company_name || 'Client')}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="min-w-0 flex-1">
-                      <p className="sd-notifications-item__title">{client.company_name}</p>
-                      <p className="sd-notifications-item__message">{preview}</p>
-                      <p className="sd-notifications-item__meta">
-                        {project ? 'Tap to open chat' : 'No project linked'}
-                      </p>
-                    </div>
-                  </button>
-                ))
+                threads.map(({ client, preview, project }) => {
+                  const count = unread.clientUnread(client.id)
+                  return (
+                    <button
+                      key={client.id}
+                      type="button"
+                      className="sd-notifications-item w-full text-left"
+                      onClick={() => setSelectedClientId(client.id)}
+                    >
+                      <Avatar className="size-9 shrink-0">
+                        <AvatarFallback className="bg-primary/10 text-xs font-medium text-primary">
+                          {getInitials(client.company_name || 'Client')}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0 flex-1">
+                        <p className="sd-notifications-item__title">{client.company_name}</p>
+                        <p className="sd-notifications-item__message">{preview}</p>
+                        <p className="sd-notifications-item__meta">
+                          {project ? 'Tap to open chat' : 'No project linked'}
+                        </p>
+                      </div>
+                      <UnreadBadge count={count} />
+                    </button>
+                  )
+                })
               )}
             </div>
             <div className="sd-notifications-panel__foot">

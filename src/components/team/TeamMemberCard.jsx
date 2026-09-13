@@ -1,4 +1,5 @@
-import { IconBriefcase, IconBuilding, IconCheck, IconCopy } from '@tabler/icons-react'
+import { IconBriefcase, IconBuilding, IconCheck, IconCopy, IconExternalLink } from '@tabler/icons-react'
+import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import {
   AVAILABILITY_DOT,
@@ -18,6 +19,7 @@ function statusLabel(availability) {
 }
 
 export default function TeamMemberCard({ member, onClick }) {
+  const navigate = useNavigate()
   const availability = member.availability || 'offline'
   const statusClass = AVAILABILITY_DOT[availability] || AVAILABILITY_DOT.offline
   const label = statusLabel(availability)
@@ -102,14 +104,14 @@ export default function TeamMemberCard({ member, onClick }) {
         ) : null}
       </div>
 
-      <div className="sd-team-card__footer">
+      <div className="sd-team-card__footer sd-client-card__footer">
         {CONTACT_ACTIONS.map(({ id, label: actionLabel, icon: Icon }) => (
           <button
             key={id}
             type="button"
             className="sd-team-action-btn"
             aria-label={actionLabel}
-            onClick={(e) => handleContactAction(e, actionLabel)}
+            onClick={(e) => handleContactAction(e, id, member)}
           >
             <span className="sd-team-action-btn__icon" aria-hidden>
               <ContactActionIcon actionId={id} icon={Icon} size={18} stroke={1.65} />
@@ -117,6 +119,17 @@ export default function TeamMemberCard({ member, onClick }) {
             <span className="sd-team-action-btn__label">{actionLabel}</span>
           </button>
         ))}
+        <button
+          type="button"
+          className="sd-client-card__portal"
+          onClick={(e) => {
+            e.stopPropagation()
+            navigate(`/team/${member.id}/portal`)
+          }}
+        >
+          Portal
+          <IconExternalLink size={13} stroke={1.75} />
+        </button>
       </div>
     </div>
   )

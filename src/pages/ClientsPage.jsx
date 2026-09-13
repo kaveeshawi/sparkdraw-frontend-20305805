@@ -38,6 +38,7 @@ import {
 } from '../components/clients/client-utils'
 import { toProjectsTabRow } from '../components/projects/project-utils'
 import { toast } from 'sonner'
+import { canAccessClients, homePathForUser, userHasPermission } from '@/lib/roles'
 
 const SORT_OPTIONS = [
   { id: 'recent', label: 'Recently added' },
@@ -62,8 +63,8 @@ export default function ClientsPage() {
   const navigate = useNavigate()
   const { user } = useAuthStore()
   const isAdmin = user?.role === 'admin'
-  const canManage = user?.role === 'admin' || user?.role === 'pm'
-  const showContact = canManage
+  const canManage = (user?.role === 'admin' || user?.role === 'pm') && userHasPermission(user, 'clients.manage')
+  const showContact = userHasPermission(user, 'clients.contact_details')
   const { projects, fetchProjects } = useProjectStore()
 
   const [clients, setClients] = useState([])
@@ -74,6 +75,12 @@ export default function ClientsPage() {
   const [search, setSearch] = useState('')
   const [filterId, setFilterId] = useState('all')
   const [sortBy, setSortBy] = useState('recent')
+
+  useEffect(() => {
+    if (!canAccessClients(user)) {
+      navigate(homePathForUser(user), { replace: true })
+    }
+  }, [user, navigate])
 
   const load = () => {
     setLoading(true)

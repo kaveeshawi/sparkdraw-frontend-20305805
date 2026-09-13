@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { cn, getInitials } from '@/lib/utils'
 import { displayMemberName, memberPhotoSrc } from './team-utils'
 
-const MAX_FACES = 2
+const DEFAULT_MAX_FACES = 6
 
 function StackAvatar({ member, sizeClass, style }) {
   const [errored, setErrored] = useState(false)
@@ -37,11 +37,11 @@ function StackAvatar({ member, sizeClass, style }) {
   )
 }
 
-export default function AvatarStack({ members = [], className, size = 'md' }) {
+export default function AvatarStack({ members = [], className, size = 'md', maxFaces = DEFAULT_MAX_FACES }) {
   const list = members || []
-  const visible = list.slice(0, MAX_FACES)
-  const overflow = Math.max(0, list.length - MAX_FACES)
-  const sizeClass = size === 'sm' ? 'size-7 text-[10px]' : 'size-8 text-[11px]'
+  const visible = list.slice(0, maxFaces)
+  const overflow = Math.max(0, list.length - maxFaces)
+  const sizeClass = size === 'sm' ? 'size-9 text-[12px]' : 'size-10 text-[13px]'
 
   if (list.length === 0) {
     return (

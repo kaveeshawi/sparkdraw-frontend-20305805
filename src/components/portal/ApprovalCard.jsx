@@ -1,13 +1,24 @@
 import { useState } from 'react'
 import { IconCheck, IconX } from '@tabler/icons-react'
-import Badge from '../legacy-ui/Badge'
+import { toast } from 'sonner'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
+import { apiErrorMessage } from '@/lib/apiError'
 import { portalApi } from '../../services/api'
+
+function formatDate(value) {
+  if (!value) return null
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return value
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+}
 
 export default function ApprovalCard({ approval, slug, projectId, onUpdated }) {
   const [showReject, setShowReject] = useState(false)
-  const [reason, setReason]         = useState('')
-  const [loading, setLoading]       = useState(false)
-  const [done, setDone]             = useState(null) // 'approved' | 'rejected'
+  const [reason, setReason] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [done, setDone] = useState(null)
 
   const isSettled = done || ['approved', 'rejected'].includes(approval.status)
   const finalStatus = done || approval.status
@@ -17,9 +28,10 @@ export default function ApprovalCard({ approval, slug, projectId, onUpdated }) {
     try {
       await portalApi.approve(slug, projectId, approval.id)
       setDone('approved')
+      toast.success('Deliverable approved')
       onUpdated?.()
-    } catch {
-      // silently ignore — demo mode
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Could not approve'))
     } finally {
       setLoading(false)
     }
@@ -29,109 +41,108 @@ export default function ApprovalCard({ approval, slug, projectId, onUpdated }) {
     if (!reason.trim()) return
     setLoading(true)
     try {
-      await portalApi.reject(slug, projectId, approval.id, reason)
+      await portalApi.reject(slug, projectId, approval.id, reason.trim())
       setDone('rejected')
       setShowReject(false)
+      toast.success('Change request sent')
       onUpdated?.()
-    } catch {
-      // silently ignore — demo mode
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Could not send feedback'))
     } finally {
       setLoading(false)
     }
   }
 
+  const title =
+    approval.deliverable_name
+    || approval.deliverable?.original_name
+    || approval.title
+    || 'Deliverable'
+
   return (
-    <div className="sd-glass sd-card--interactive flex flex-col gap-3 p-4 px-5">
-      {/* Header */}
+    <article className="sd-card p-5">
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="text-[13px] font-medium text-foreground">
-            {approval.deliverable_name || approval.deliverable?.original_name || approval.title || 'Deliverable'}
-          </div>
-          {approval.requested_at && (
-            <div className="mt-0.5 text-[10px] text-muted-foreground">
-              Requested {approval.requested_at}
-            </div>
-          )}
+        <div className="min-w-0">
+          <h3 className="text-sm font-semibold">{title}</h3>
+          {approval.requested_at ? (
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Requested {formatDate(approval.requested_at)}
+            </p>
+          ) : null}
         </div>
         <Badge
           variant={
             finalStatus === 'approved'
               ? 'success'
               : finalStatus === 'rejected'
-                ? 'danger'
+                ? 'destructive'
                 : 'warning'
           }
+          className="capitalize"
         >
           {finalStatus || 'pending'}
         </Badge>
       </div>
 
-      {/* Description */}
-      {approval.description && (
-        <p className="m-0 text-xs leading-relaxed text-foreground/80">
-          {approval.description}
-        </p>
-      )}
+      {approval.description ? (
+        <p className="mt-2 text-sm text-muted-foreground">{approval.description}</p>
+      ) : null}
 
-      {/* Success state */}
-      {finalStatus === 'approved' && (
-        <div className="flex items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-600">
+      {finalStatus === 'approved' ? (
+        <div className="mt-3 flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
           <IconCheck size={14} />
           Approved — thank you!
         </div>
-      )}
+      ) : null}
 
-      {finalStatus === 'rejected' && (
-        <div className="flex items-center gap-1.5 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">
+      {finalStatus === 'rejected' ? (
+        <div className="mt-3 flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-xs font-medium text-red-600 dark:bg-red-950/40 dark:text-red-300">
           <IconX size={14} />
-          Rejected — your team has been notified.
+          Changes requested — your team has been notified.
         </div>
-      )}
+      ) : null}
 
-      {/* Action buttons */}
-      {!isSettled && (
-        <div className="flex flex-col gap-2">
-          <div className="flex gap-2">
-            <button
-              onClick={handleApprove}
-              disabled={loading}
-              className="portal-submit-btn flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-medium text-white"
-            >
+      {!isSettled ? (
+        <div className="mt-4 space-y-3">
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" className="flex-1" disabled={loading} onClick={handleApprove}>
               <IconCheck size={14} />
               {loading ? 'Processing…' : 'Approve'}
-            </button>
-            <button
-              onClick={() => setShowReject((v) => !v)}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1"
               disabled={loading}
-              className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-red-200 bg-white py-2 text-xs font-medium text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50"
+              onClick={() => setShowReject((v) => !v)}
             >
               <IconX size={14} />
               Request changes
-            </button>
+            </Button>
           </div>
 
-          {/* Inline rejection reason textarea */}
-          {showReject && (
-            <div className="flex flex-col gap-2">
-              <textarea
+          {showReject ? (
+            <div className="space-y-2">
+              <Textarea
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 placeholder="Describe what changes are needed…"
                 rows={3}
-                className="portal-textarea w-full rounded-xl border px-2.75 py-2.5 text-xs leading-relaxed outline-none transition-all"
               />
-              <button
-                onClick={handleReject}
-                disabled={loading || !reason.trim()}
-                className="self-end rounded-lg bg-red-500 px-4 py-1.75 text-xs font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {loading ? 'Sending…' : 'Send feedback'}
-              </button>
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  variant="destructive"
+                  disabled={loading || !reason.trim()}
+                  onClick={handleReject}
+                >
+                  {loading ? 'Sending…' : 'Send feedback'}
+                </Button>
+              </div>
             </div>
-          )}
+          ) : null}
         </div>
-      )}
-    </div>
+      ) : null}
+    </article>
   )
 }

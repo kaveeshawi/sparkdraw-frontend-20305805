@@ -17,7 +17,7 @@ export function NavUpgrade() {
         asChild
         className="sd-upgrade-card__btn w-full bg-white text-primary hover:bg-white/90"
       >
-        <Link to="/ai-studio">Try AI Studio</Link>
+        <Link to="/ai-studio">Open AI Insights</Link>
       </Button>
     </div>
   )

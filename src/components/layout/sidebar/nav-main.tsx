@@ -15,6 +15,7 @@ import {
 } from '@/components/layout/sidebar/nav-config'
 import { NavIcon } from '@/components/layout/sidebar/nav-icon'
 import useAuthStore from '@/store/authStore'
+import useInboxUnread from '@/hooks/useInboxUnread'
 import { cn } from '@/lib/utils'
 
 function navLabel(title: string) {
@@ -24,16 +25,18 @@ function navLabel(title: string) {
 function FloatNavItems({
   items,
   mode,
-  userRole,
+  user,
   matchingSecondaryHref,
+  badges,
 }: {
   items: NavItem[]
   mode: 'primary' | 'secondary'
-  userRole: string | undefined
+  user: { role?: string } | null | undefined
   matchingSecondaryHref?: string
+  badges?: Partial<Record<string, number>>
 }) {
   const { pathname } = useLocation()
-  const activePrimary = getActivePrimaryNavItem(pathname, userRole)
+  const activePrimary = getActivePrimaryNavItem(pathname, user?.role, user)
 
   return (
     <SidebarMenu className="sd-float-nav-menu">
@@ -44,12 +47,19 @@ function FloatNavItems({
             : isNavItemActive(item, pathname)
 
         const isInsights = item.variant === 'insights'
+        const rawBadge =
+          item.badgeKey && badges && Object.prototype.hasOwnProperty.call(badges, item.badgeKey)
+            ? badges[item.badgeKey]
+            : 0
+        const badgeCount = Math.max(0, Math.floor(Number(rawBadge) || 0))
 
         return (
           <SidebarMenuItem key={`${item.href}-${item.title}`} className="sd-float-nav-item">
             <Link
               to={item.href}
-              aria-label={item.title}
+              aria-label={
+                badgeCount > 0 ? `${item.title}, ${badgeCount} unread` : item.title
+              }
               className={cn(
                 'sd-float-nav-entry',
                 active && 'sd-float-nav-entry--active',
@@ -66,6 +76,9 @@ function FloatNavItems({
               >
                 {item.icon && <NavIcon icon={item.icon} size={22} stroke={1.5} />}
                 <span className="sd-float-nav-label">{navLabel(item.title)}</span>
+                {badgeCount > 0 ? (
+                  <span className="sd-float-nav-dot" aria-hidden />
+                ) : null}
               </span>
             </Link>
           </SidebarMenuItem>
@@ -78,14 +91,20 @@ function FloatNavItems({
 export function NavMain() {
   const { user } = useAuthStore()
   const { pathname } = useLocation()
+  const unread = useInboxUnread()
 
-  const primaryItems = useMemo(() => getPrimaryNavForRole(user?.role), [user?.role])
-  const secondaryItems = useMemo(() => getSecondaryNavForRole(user?.role), [user?.role])
+  const primaryItems = useMemo(() => getPrimaryNavForRole(user?.role, user), [user])
+  const secondaryItems = useMemo(() => getSecondaryNavForRole(user?.role, user), [user])
 
   const matchingSecondaryHref = useMemo(
     () => secondaryItems.find((item) => isNavItemActive(item, pathname))?.href,
     [secondaryItems, pathname],
   )
+
+  const badges = useMemo(() => {
+    const n = Math.max(0, Math.floor(Number(unread.total) || 0))
+    return n > 0 ? { inbox: n } : {}
+  }, [unread.total])
 
   return (
     <div className="sd-float-nav">
@@ -94,8 +113,9 @@ export function NavMain() {
           <FloatNavItems
             items={primaryItems}
             mode="primary"
-            userRole={user?.role}
+            user={user}
             matchingSecondaryHref={matchingSecondaryHref}
+            badges={badges}
           />
         </SidebarGroupContent>
       </SidebarGroup>
@@ -108,7 +128,8 @@ export function NavMain() {
               <FloatNavItems
                 items={secondaryItems}
                 mode="secondary"
-                userRole={user?.role}
+                user={user}
+                badges={badges}
               />
             </SidebarGroupContent>
           </SidebarGroup>

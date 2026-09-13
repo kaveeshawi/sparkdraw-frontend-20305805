@@ -16,16 +16,7 @@ import {
   invoicesApi,
   upsellApi,
 } from '../../services/api'
-
-function formatMoney(n) {
-  const v = Number(n) || 0
-  if (v >= 1000) return `$${(v / 1000).toFixed(v >= 10000 ? 0 : 1)}K`
-  return `$${v.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
-}
-
-function formatMoneyFull(n) {
-  return `$${(Number(n) || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`
-}
+import { useFormatMoney } from '@/hooks/useAgencyCurrency'
 
 /** Build a simple month-to-date series when the API only returns totals. */
 function buildRevenueSeries(thisMonth, lastMonth) {
@@ -79,6 +70,9 @@ function healthSegmentsFromProjects(projects = [], agencyAvg) {
 }
 
 export default function ProjectsInsightsPanel({ projects = [], onViewProjects, compact = false }) {
+  const money = useFormatMoney()
+  const formatMoney = (n) => money(n, { compact: true })
+  const formatMoneyFull = (n) => money(n)
   const [loading, setLoading] = useState(true)
   const [revenue, setRevenue] = useState(null)
   const [agencyAvg, setAgencyAvg] = useState(null)
@@ -171,7 +165,7 @@ export default function ProjectsInsightsPanel({ projects = [], onViewProjects, c
           ? `${formatMoneyFull(upsellEstimate)} in upsell opportunities identified`
           : 'No pending upsell opportunities',
       action: 'View opportunities',
-      href: '/ai-studio',
+      href: '/ai-studio?section=upsell',
     },
     {
       id: 'sentiment',
@@ -182,7 +176,7 @@ export default function ProjectsInsightsPanel({ projects = [], onViewProjects, c
           ? `${negativeClients} client${negativeClients === 1 ? '' : 's'} showing negative sentiment`
           : 'Client sentiment looks stable',
       action: 'Check feedback',
-      href: '/ai-studio',
+      href: '/ai-studio?section=sentiment',
     },
     {
       id: 'approvals',
@@ -270,7 +264,7 @@ export default function ProjectsInsightsPanel({ projects = [], onViewProjects, c
         </ul>
         <Link to="/ai-studio" className="sd-insights-ask">
           <IconRobot size={18} stroke={1.75} />
-          Ask Sparkdraw AI
+          Open AI Insights
         </Link>
       </section>
 

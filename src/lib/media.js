@@ -48,3 +48,24 @@ export function clientPhotoSrc(client) {
 export function getAgencyId(user) {
   return user?.agency?.id ?? user?.agency_id ?? null
 }
+
+/** Resolve agency logo (light or dark) from API path/url fields. */
+export function agencyLogoSrc(agency, { dark = false, preview } = {}) {
+  if (preview) return preview
+  if (!agency) return ''
+
+  const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
+  const backendOrigin = apiBase.replace(/\/api\/v1\/?$/, '')
+
+  const raw = dark
+    ? (agency.logo_dark_url || agency.logo_dark_path || '')
+    : (agency.logo_url || agency.logo_path || '')
+
+  if (!raw) return ''
+  if (raw.startsWith('blob:') || raw.startsWith('data:')) return raw
+  if (raw.startsWith('http://') || raw.startsWith('https://')) return raw
+
+  const clean = String(raw).replace(/^\/+/, '')
+  const pathname = clean.startsWith('storage/') ? `/${clean}` : `/storage/${clean}`
+  return `${backendOrigin}${pathname}`
+}

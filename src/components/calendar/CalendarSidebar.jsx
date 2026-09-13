@@ -1,7 +1,6 @@
 import { IconChevronDown, IconChevronLeft, IconChevronRight, IconChevronUp, IconClock, IconX } from '@tabler/icons-react'
 import { cn, getInitials } from '@/lib/utils'
-import { FILTER_OPTIONS } from './calendar-demo-events'
-import { buildMonthGrid, formatTimeRange, MINI_WEEKDAYS, toDateKey } from './calendar-utils'
+import { FILTER_OPTIONS, buildMonthGrid, formatTimeRange, MINI_WEEKDAYS, toDateKey } from './calendar-utils'
 
 function MiniAvatar({ label, className }) {
   return (
@@ -17,6 +16,7 @@ export default function CalendarSidebar({
   filters,
   onToggleFilter,
   reminderEvent,
+  onDismissReminder,
   filtersOpen,
   onToggleFilters,
   otherOpen,
@@ -104,10 +104,20 @@ export default function CalendarSidebar({
               ) : null}
             </div>
             <div className="sd-cal-v2__reminder-actions">
-              <button type="button" className="sd-cal-v2__reminder-btn sd-cal-v2__reminder-btn--dismiss" aria-label="Dismiss">
+              <button
+                type="button"
+                className="sd-cal-v2__reminder-btn sd-cal-v2__reminder-btn--dismiss"
+                aria-label="Dismiss"
+                onClick={() => onDismissReminder?.()}
+              >
                 <IconX size={14} stroke={2} />
               </button>
-              <button type="button" className="sd-cal-v2__reminder-btn sd-cal-v2__reminder-btn--accept" aria-label="Accept">
+              <button
+                type="button"
+                className="sd-cal-v2__reminder-btn sd-cal-v2__reminder-btn--accept"
+                aria-label="Open"
+                onClick={() => onSelectDate?.(new Date(reminderEvent.startsAt || focusDate))}
+              >
                 ✓
               </button>
             </div>

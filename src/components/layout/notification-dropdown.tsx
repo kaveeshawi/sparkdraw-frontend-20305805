@@ -111,9 +111,13 @@ function getAlertMessage(alert: AlertItem) {
 }
 
 function getAlertHref(alert: AlertItem) {
-  if (alert.event_type === 'health_score_critical') return '/health-scores'
-  if (alert.event_type === 'ai_ticket_generated') return '/ai-studio'
-  if (alert.project_id) return `/projects/${alert.project_id}/`
+  if (alert.event_type === 'health_score_critical') return '/ai-studio?section=health'
+  if (alert.event_type === 'client_sentiment_declining') return '/ai-studio?section=sentiment'
+  if (alert.event_type === 'ai_ticket_generated') return '/ai-studio?section=translator'
+  if (alert.event_type === 'revision_risk_detected' || alert.event_type === 'deadline_at_risk') {
+    return '/ai-studio?section=alerts'
+  }
+  if (alert.project_id) return `/projects/${alert.project_id}/kanban`
   return '/ai-studio'
 }
 

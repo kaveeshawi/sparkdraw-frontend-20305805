@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import {
   IconArrowRight,
+  IconPencil,
   IconRefresh,
 } from '@tabler/icons-react'
 import { getInitials } from '@/lib/utils'
@@ -139,7 +140,7 @@ function resolveStatusDisplay(project) {
   return STATUS_STYLES[status] || STATUS_STYLES.not_started
 }
 
-export default function ProjectCard({ project, onOpen }) {
+export default function ProjectCard({ project, onOpen, onEdit, canEdit = false }) {
   const progress = getProgressPct(project)
   const taskTotal = Number(project?.task_counts?.total ?? project?.tasks_count ?? 0)
   const hasTasks = taskTotal > 0
@@ -251,14 +252,30 @@ export default function ProjectCard({ project, onOpen }) {
           <TeamStack members={project.team_members} />
         </div>
 
-        <Link
-          to={`/projects/${project.id}/kanban`}
-          className="sd-project-card-v2__cta sd-project-card-v2__cta--inline"
-          onClick={(e) => e.stopPropagation()}
-        >
-          View project
-          <IconArrowRight size={14} stroke={2} aria-hidden />
-        </Link>
+        <div className="flex shrink-0 items-center gap-1.5">
+          {canEdit ? (
+            <button
+              type="button"
+              className="sd-project-card-v2__edit"
+              title="Edit project"
+              aria-label="Edit project"
+              onClick={(e) => {
+                e.stopPropagation()
+                onEdit?.(project)
+              }}
+            >
+              <IconPencil size={14} stroke={1.75} />
+            </button>
+          ) : null}
+          <Link
+            to={`/projects/${project.id}/kanban`}
+            className="sd-project-card-v2__cta sd-project-card-v2__cta--inline"
+            onClick={(e) => e.stopPropagation()}
+          >
+            View project
+            <IconArrowRight size={14} stroke={2} aria-hidden />
+          </Link>
+        </div>
       </div>
     </div>
   )

@@ -4,6 +4,7 @@ import {
   IconBuilding,
   IconCalendar,
   IconLayoutKanban,
+  IconPencil,
 } from '@tabler/icons-react'
 import { useServiceLabel } from '@/hooks/useAgencyServices'
 import {
@@ -19,7 +20,7 @@ import {
   statusPillClass,
 } from './project-utils'
 
-export default function ProjectRow({ project, onOpen }) {
+export default function ProjectRow({ project, onOpen, onEdit, canEdit = false }) {
   const progress = getProgressPct(project)
   const health = getProjectHealth(project)
   const tasks = getTaskCounts(project)
@@ -122,14 +123,30 @@ export default function ProjectRow({ project, onOpen }) {
         </div>
       </div>
 
-      <Link
-        to={`/projects/${project.id}/kanban`}
-        className="sd-project-card__board shrink-0"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <IconLayoutKanban size={15} stroke={1.75} />
-        Board
-      </Link>
+      <div className="flex shrink-0 items-center gap-1.5">
+        {canEdit ? (
+          <button
+            type="button"
+            className="sd-project-card-v2__edit"
+            title="Edit project"
+            aria-label="Edit project"
+            onClick={(e) => {
+              e.stopPropagation()
+              onEdit?.(project)
+            }}
+          >
+            <IconPencil size={14} stroke={1.75} />
+          </button>
+        ) : null}
+        <Link
+          to={`/projects/${project.id}/kanban`}
+          className="sd-project-card__board shrink-0"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <IconLayoutKanban size={15} stroke={1.75} />
+          Board
+        </Link>
+      </div>
     </div>
   )
 }

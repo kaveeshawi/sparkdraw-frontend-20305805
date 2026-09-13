@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { TrendChart } from '@/components/dashboard/TrendChart'
 import { Skeleton } from '@/components/ui/skeleton'
 import { timeOverviewApi } from '@/services/api'
+import { useFormatMoney } from '@/hooks/useAgencyCurrency'
 
 const REVENUE_TREND = [
   { label: 'Jan', value: 32000 },
@@ -81,13 +82,14 @@ function TimeOverviewChart({ billable, onDuty }) {
 }
 
 export function RevenuePanel() {
+  const money = useFormatMoney()
   return (
     <div className="ref-mini-panel">
       <p className="ref-mini-panel__title">Revenue overview</p>
       <TrendChart
         data={REVENUE_TREND}
         gradientId="revenueLineGrad"
-        formatValue={(v) => `$${(v / 1000).toFixed(1)}K`}
+        formatValue={(v) => money(v, { compact: true })}
       />
     </div>
   )

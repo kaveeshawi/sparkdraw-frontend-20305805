@@ -5,6 +5,7 @@ import { AppSidebar } from '@/components/layout/sidebar/app-sidebar'
 import { SiteHeader } from '@/components/layout/site-header'
 
 import { TooltipProvider } from '@/components/ui/tooltip'
+import SettingsModal from '@/components/settings/SettingsModal'
 
 type AgencyShellProps = {
   children: React.ReactNode
@@ -50,6 +51,7 @@ export default function AgencyShell({
             <div className="sd-shell-content">{children}</div>
           </div>
         </SidebarInset>
+        <SettingsModal />
       </SidebarProvider>
     </TooltipProvider>
   )

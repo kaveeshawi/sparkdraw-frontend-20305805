@@ -6,7 +6,6 @@ import {
   CONTACT_ACTIONS,
   canShowContactDetails,
   displayClientName,
-  displayClientPosition,
   displayContactPersonName,
   handleClientContactAction,
   portalPath,
@@ -16,7 +15,6 @@ import {
 export default function ClientCard({ client, onClick, showContact = true }) {
   const personName = displayContactPersonName(client)
   const companyName = displayClientName(client)
-  const position = displayClientPosition(client)
   const email = showContact ? client.contact_email : null
   const hasContact = showContact && canShowContactDetails(client)
   const projectsText = projectsCountLabel(client)
@@ -60,12 +58,6 @@ export default function ClientCard({ client, onClick, showContact = true }) {
         <p className="sd-team-card__name">{personName}</p>
 
         <div className="sd-team-card__facts">
-          <p className="sd-team-card__fact-line" title={position}>
-            <IconBriefcase size={14} stroke={1.65} className="sd-team-card__fact-icon" aria-hidden />
-            <span className="sd-team-card__fact-key">Position</span>
-            <span className="sd-team-card__fact-sep">-</span>
-            <span className="sd-team-card__fact-val">{position}</span>
-          </p>
           <p className="sd-team-card__fact-line sd-team-card__fact-line--company" title={companyName}>
             <IconBuilding size={14} stroke={1.65} className="sd-team-card__fact-icon" aria-hidden />
             <span className="sd-team-card__fact-key">Company</span>

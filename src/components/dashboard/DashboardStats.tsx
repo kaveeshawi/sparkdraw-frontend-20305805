@@ -12,6 +12,9 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { clientsApi, invoicesApi, healthScoresApi } from '@/services/api'
 import { cn } from '@/lib/utils'
 import { TrendChart, type TrendDatum } from '@/components/dashboard/TrendChart'
+import { useFormatMoney } from '@/hooks/useAgencyCurrency'
+import { formatMoney as formatMoneyLib } from '@/lib/currency'
+import useAuthStore from '@/store/authStore'
 
 const WEEK_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
@@ -35,6 +38,7 @@ export function RevenueHeroCard({
   loading?: boolean
   seriesEnd: number
 }) {
+  const money = useFormatMoney()
   const series = useMemo(() => makeWeekSeries(seriesEnd, 'up'), [seriesEnd])
 
   return (
@@ -57,7 +61,7 @@ export function RevenueHeroCard({
         data={series}
         color="rgba(255,255,255,0.95)"
         gradientId="heroRevenueGrad"
-        formatValue={(v) => `$${(v / 1000).toFixed(1)}K`}
+        formatValue={(v) => money(v, { compact: true })}
         className="ref-stat-card__sparkline"
       />
     </div>
@@ -126,6 +130,7 @@ export function AIAssistantCard({ className }: { className?: string }) {
 }
 
 export function useDashboardStats() {
+  const currency = useAuthStore((s) => s.user?.agency?.currency || 'USD')
   const [revenue, setRevenue] = useState<{ this_month?: number; revenue?: number } | null>(null)
   const [agencyHealth, setAgencyHealth] = useState<{ average_score?: number; average?: number } | null>(null)
   const [loading, setLoading] = useState(true)
@@ -144,7 +149,7 @@ export function useDashboardStats() {
 
   const healthScore = agencyHealth?.average_score ?? agencyHealth?.average ?? 87
   const revenueRaw = revenue ? Number(revenue.this_month ?? revenue.revenue ?? 0) : 58200
-  const revenueValue = `$${(revenueRaw / 1000).toFixed(1)}K`
+  const revenueValue = formatMoneyLib(revenueRaw, currency, { compact: true })
 
   return { loading, healthScore, revenueValue, revenueRaw }
 }
